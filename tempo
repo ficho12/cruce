@@ -1,0 +1,136 @@
+Soy el padre con PID 11386 con tipoProceso 1
+Soy el padre con PID 11386 con tipoProceso 1
+Soy el coche con PID 11393. pos1.x=-3, pos1.y=10 pos2.x=0 pos2.y=0
+Soy el coche con PID avanzo 11393. pos1.x=-3, pos1.y=10 pos3.x=-1 pos3.y=10
+Soy el coche con PID avanzo 11393. pos1.x=-1, pos1.y=10 pos3.x=1 pos3.y=10
+Soy el coche con PID avanzo 11393. pos1.x=1, pos1.y=10 pos3.x=3 pos3.y=10
+Soy el coche con PID avanzo 11393. pos1.x=3, pos1.y=10 pos3.x=5 pos3.y=10
+Soy el coche con PID avanzo 11393. pos1.x=5, pos1.y=10 pos3.x=7 pos3.y=10
+Soy el coche con PID avanzo 11393. pos1.x=7, pos1.y=10 pos3.x=9 pos3.y=10
+Soy el coche con PID avanzo 11393. pos1.x=9, pos1.y=10 pos3.x=11 pos3.y=10
+Soy el coche con PID avanzo 11393. pos1.x=11, pos1.y=10 pos3.x=13 pos3.y=10
+Soy el coche con PID avanzo 11393. pos1.x=13, pos1.y=10 pos3.x=15 pos3.y=10
+Soy el coche con PID avanzo 11393. pos1.x=15, pos1.y=10 pos3.x=17 pos3.y=10
+Soy el coche con PID avanzo 11393. pos1.x=17, pos1.y=10 pos3.x=19 pos3.y=10
+Soy el coche con PID avanzo 11393. pos1.x=19, pos1.y=10 pos3.x=21 pos3.y=10
+Soy el coche con PID avanzo 11393. pos1.x=21, pos1.y=10 pos3.x=23 pos3.y=10
+Soy el coche con PID avanzo 11393. pos1.x=23, pos1.y=10 pos3.x=25 pos3.y=10
+Soy el coche con PID avanzo 11393. pos1.x=25, pos1.y=10 pos3.x=27 pos3.y=10
+Soy el coche con PID avanzo 11393. pos1.x=27, pos1.y=10 pos3.x=29 pos3.y=10
+Soy el coche con PID avanzo 11393. pos1.x=29, pos1.y=10 pos3.x=31 pos3.y=10
+Soy el coche con PID avanzo 11393. pos1.x=31, pos1.y=10 pos3.x=33 pos3.y=10
+Soy el coche con PID avanzo 11393. pos1.x=33, pos1.y=10 pos3.x=33 pos3.y=12
+Soy el coche con PID avanzo 11393. pos1.x=33, pos1.y=12 pos3.x=33 pos3.y=13
+Soy el coche con PID avanzo 11393. pos1.x=33, pos1.y=13 pos3.x=33 pos3.y=14
+Soy el coche con PID avanzo 11393. pos1.x=33, pos1.y=14 pos3.x=33 pos3.y=15
+Soy el coche con PID avanzo 11393. pos1.x=33, pos1.y=15 pos3.x=33 pos3.y=16
+Soy el coche con PID avanzo 11393. pos1.x=33, pos1.y=16 pos3.x=33 pos3.y=17
+Soy el coche con PID avanzo 11393. pos1.x=33, pos1.y=17 pos3.x=33 pos3.y=18
+Soy el coche con PID avanzo 11393. pos1.x=33, pos1.y=18 pos3.x=33 pos3.y=19
+Soy el coche con PID avanzo 11393. pos1.x=33, pos1.y=19 pos3.x=33 pos3.y=20
+Soy el coche con PID avanzo 11393. pos1.x=33, pos1.y=20 pos3.x=-1 pos3.y=-2
+Soy el padre con PID 11386 con tipoProceso 0
+Soy el padre con PID 11386 con tipoProceso 1
+Soy el peaton con PID 11390. pos1.x=20, pos1.y=16 pos2.x=19 pos2.y=16
+Soy el peaton con PID 11390.Avanzo pos1.x=20, pos1.y=16 pos3.x=20 pos3.y=15
+Soy el peaton con PID 11390.Avanzo pos1.x=20, pos1.y=15 pos3.x=20 pos3.y=14
+Soy el peaton con PID 11390.Avanzo pos1.x=20, pos1.y=14 pos3.x=21 pos3.y=14
+Soy el peaton con PID 11390.Avanzo pos1.x=21, pos1.y=14 pos3.x=21 pos3.y=13
+Soy el peaton con PID 11390.Avanzo pos1.x=21, pos1.y=13 pos3.x=22 pos3.y=13
+Soy el peaton con PID 11390.Avanzo pos1.x=22, pos1.y=13 pos3.x=23 pos3.y=13
+Soy el peaton con PID 11390.Avanzo pos1.x=23, pos1.y=13 pos3.x=24 pos3.y=13
+Soy el peaton con PID 11390.Avanzo pos1.x=24, pos1.y=13 pos3.x=25 pos3.y=13
+Soy el peaton con PID 11390.Avanzo pos1.x=25, pos1.y=13 pos3.x=26 pos3.y=13
+Soy el peaton con PID 11390.Avanzo pos1.x=26, pos1.y=13 pos3.x=27 pos3.y=13
+Soy el peaton con PID 11390.Avanzo pos1.x=27, pos1.y=13 pos3.x=28 pos3.y=13
+Soy el peaton con PID 11390.Avanzo pos1.x=28, pos1.y=13 pos3.x=29 pos3.y=13
+Soy el peaton con PID 11390.Avanzo pos1.x=29, pos1.y=13 pos3.x=30 pos3.y=13
+Soy el peaton con PID 11390.Avanzo pos1.x=30, pos1.y=13 pos3.x=31 pos3.y=13
+Soy el peaton con PID 11390.Avanzo pos1.x=31, pos1.y=13 pos3.x=32 pos3.y=13
+Soy el peaton con PID 11390.Avanzo pos1.x=32, pos1.y=13 pos3.x=33 pos3.y=13
+Soy el peaton con PID 11390.Avanzo pos1.x=33, pos1.y=13 pos3.x=34 pos3.y=13
+Soy el padre con PID 11386 con tipoProceso 1
+Soy el peaton con PID 11390.Avanzo pos1.x=34, pos1.y=13 pos3.x=35 pos3.y=13
+Soy el peaton con PID 11390.Avanzo pos1.x=35, pos1.y=13 pos3.x=36 pos3.y=13
+Soy el peaton con PID 11390.Avanzo pos1.x=36, pos1.y=13 pos3.x=37 pos3.y=13
+Soy el peaton con PID 11390.Avanzo pos1.x=37, pos1.y=13 pos3.x=38 pos3.y=13
+Soy el peaton con PID 11390.Avanzo pos1.x=38, pos1.y=13 pos3.x=39 pos3.y=13
+Soy el peaton con PID 11390.Avanzo pos1.x=39, pos1.y=13 pos3.x=40 pos3.y=13
+Soy el peaton con PID 11390.Avanzo pos1.x=40, pos1.y=13 pos3.x=41 pos3.y=13
+Soy el peaton con PID 11390.Avanzo pos1.x=41, pos1.y=13 pos3.x=41 pos3.y=12
+Soy el peaton con PID 11390.Avanzo pos1.x=41, pos1.y=12 pos3.x=41 pos3.y=11
+Soy el peaton con PID 11390.Avanzo pos1.x=41, pos1.y=11 pos3.x=41 pos3.y=10
+Soy el peaton con PID 11390.Avanzo pos1.x=41, pos1.y=10 pos3.x=42 pos3.y=10
+Soy el peaton con PID 11390.Avanzo pos1.x=42, pos1.y=10 pos3.x=43 pos3.y=10
+Soy el peaton con PID 11390.Avanzo pos1.x=43, pos1.y=10 pos3.x=43 pos3.y=9
+Soy el peaton con PID 11390.Avanzo pos1.x=43, pos1.y=9 pos3.x=44 pos3.y=9
+Soy el peaton con PID 11390.Avanzo pos1.x=44, pos1.y=9 pos3.x=44 pos3.y=8
+Soy el peaton con PID 11390.Avanzo pos1.x=44, pos1.y=8 pos3.x=44 pos3.y=7
+Soy el peaton con PID 11390.Avanzo pos1.x=44, pos1.y=7 pos3.x=44 pos3.y=6
+Soy el padre con PID 11386 con tipoProceso 1
+Soy el peaton con PID 11390.Avanzo pos1.x=44, pos1.y=6 pos3.x=44 pos3.y=5
+Soy el peaton con PID 11394. pos1.x=25, pos1.y=15 pos2.x=25 pos2.y=16
+Soy el peaton con PID 11394.Avanzo pos1.x=25, pos1.y=15 pos3.x=25 pos3.y=14
+Soy el peaton con PID 11390.Avanzo pos1.x=44, pos1.y=5 pos3.x=45 pos3.y=5
+Soy el peaton con PID 11394.Avanzo pos1.x=25, pos1.y=14 pos3.x=25 pos3.y=13
+Soy el peaton con PID 11390.Avanzo pos1.x=45, pos1.y=5 pos3.x=45 pos3.y=4
+Soy el peaton con PID 11394.Avanzo pos1.x=25, pos1.y=13 pos3.x=25 pos3.y=12
+Soy el peaton con PID 11390.Avanzo pos1.x=45, pos1.y=4 pos3.x=45 pos3.y=3
+Soy el peaton con PID 11394.Avanzo pos1.x=25, pos1.y=12 pos3.x=25 pos3.y=11
+Soy el peaton con PID 11390.Avanzo pos1.x=45, pos1.y=3 pos3.x=45 pos3.y=2
+Soy el peaton con PID 11394.Avanzo pos1.x=25, pos1.y=11 pos3.x=25 pos3.y=10
+Soy el peaton con PID 11394.Avanzo pos1.x=25, pos1.y=10 pos3.x=25 pos3.y=9
+Soy el peaton con PID 11390.Avanzo pos1.x=45, pos1.y=2 pos3.x=46 pos3.y=2
+Soy el peaton con PID 11394.Avanzo pos1.x=25, pos1.y=9 pos3.x=25 pos3.y=8
+Soy el peaton con PID 11390.Avanzo pos1.x=46, pos1.y=2 pos3.x=47 pos3.y=2
+Soy el peaton con PID 11394.Avanzo pos1.x=25, pos1.y=8 pos3.x=25 pos3.y=7
+Soy el peaton con PID 11390.Avanzo pos1.x=47, pos1.y=2 pos3.x=48 pos3.y=2
+Soy el peaton con PID 11394.Avanzo pos1.x=25, pos1.y=7 pos3.x=25 pos3.y=6
+Soy el peaton con PID 11390.Avanzo pos1.x=48, pos1.y=2 pos3.x=48 pos3.y=1
+Soy el peaton con PID 11390.Avanzo pos1.x=48, pos1.y=1 pos3.x=48 pos3.y=0
+Soy el peaton con PID 11394.Avanzo pos1.x=25, pos1.y=6 pos3.x=25 pos3.y=5
+Soy el peaton con PID 11390.Avanzo pos1.x=48, pos1.y=0 pos3.x=-1 pos3.y=-2
+Soy el peaton con PID 11394.Avanzo pos1.x=25, pos1.y=5 pos3.x=24 pos3.y=5
+Soy el peaton con PID 11394.Avanzo pos1.x=24, pos1.y=5 pos3.x=24 pos3.y=4
+Soy el peaton con PID 11394.Avanzo pos1.x=24, pos1.y=4 pos3.x=23 pos3.y=4
+Soy el peaton con PID 11394.Avanzo pos1.x=23, pos1.y=4 pos3.x=22 pos3.y=4
+Soy el peaton con PID 11394.Avanzo pos1.x=22, pos1.y=4 pos3.x=22 pos3.y=3
+Soy el peaton con PID 11394.Avanzo pos1.x=22, pos1.y=3 pos3.x=22 pos3.y=2
+Soy el padre con PID 11386 con tipoProceso 0
+Soy el peaton con PID 11394.Avanzo pos1.x=22, pos1.y=2 pos3.x=22 pos3.y=1
+Soy el peaton con PID 11398. pos1.x=21, pos1.y=16 pos2.x=20 pos2.y=16
+Soy el peaton con PID 11398.Avanzo pos1.x=21, pos1.y=16 pos3.x=22 pos3.y=16
+Soy el peaton con PID 11398.Avanzo pos1.x=22, pos1.y=16 pos3.x=22 pos3.y=15
+Soy el peaton con PID 11394.Avanzo pos1.x=22, pos1.y=1 pos3.x=21 pos3.y=1
+Soy el peaton con PID 11394.Avanzo pos1.x=21, pos1.y=1 pos3.x=21 pos3.y=0
+Soy el peaton con PID 11398.Avanzo pos1.x=22, pos1.y=15 pos3.x=23 pos3.y=15
+Soy el peaton con PID 11394.Avanzo pos1.x=21, pos1.y=0 pos3.x=20 pos3.y=0
+Soy el peaton con PID 11398.Avanzo pos1.x=23, pos1.y=15 pos3.x=23 pos3.y=14
+Soy el peaton con PID 11394.Avanzo pos1.x=20, pos1.y=0 pos3.x=19 pos3.y=0
+Soy el peaton con PID 11398.Avanzo pos1.x=23, pos1.y=14 pos3.x=24 pos3.y=14
+Soy el peaton con PID 11394.Avanzo pos1.x=19, pos1.y=0 pos3.x=18 pos3.y=0
+Soy el peaton con PID 11398.Avanzo pos1.x=24, pos1.y=14 pos3.x=25 pos3.y=14
+Soy el peaton con PID 11394.Avanzo pos1.x=18, pos1.y=0 pos3.x=17 pos3.y=0
+Soy el peaton con PID 11398.Avanzo pos1.x=25, pos1.y=14 pos3.x=26 pos3.y=14
+Soy el peaton con PID 11394.Avanzo pos1.x=17, pos1.y=0 pos3.x=16 pos3.y=0
+Soy el peaton con PID 11398.Avanzo pos1.x=26, pos1.y=14 pos3.x=27 pos3.y=14
+Soy el peaton con PID 11394.Avanzo pos1.x=16, pos1.y=0 pos3.x=15 pos3.y=0
+Soy el peaton con PID 11398.Avanzo pos1.x=27, pos1.y=14 pos3.x=28 pos3.y=14
+Soy el peaton con PID 11394.Avanzo pos1.x=15, pos1.y=0 pos3.x=14 pos3.y=0
+Soy el peaton con PID 11398.Avanzo pos1.x=28, pos1.y=14 pos3.x=29 pos3.y=14
+Soy el peaton con PID 11394.Avanzo pos1.x=14, pos1.y=0 pos3.x=13 pos3.y=0
+Soy el peaton con PID 11398.Avanzo pos1.x=29, pos1.y=14 pos3.x=30 pos3.y=14
+Soy el peaton con PID 11398.Avanzo pos1.x=30, pos1.y=14 pos3.x=31 pos3.y=14
+Soy el peaton con PID 11394.Avanzo pos1.x=13, pos1.y=0 pos3.x=12 pos3.y=0
+Soy el peaton con PID 11398.Avanzo pos1.x=31, pos1.y=14 pos3.x=32 pos3.y=14
+Soy el peaton con PID 11394.Avanzo pos1.x=12, pos1.y=0 pos3.x=11 pos3.y=0
+Soy el peaton con PID 11398.Avanzo pos1.x=32, pos1.y=14 pos3.x=33 pos3.y=14
+Soy el peaton con PID 11394.Avanzo pos1.x=11, pos1.y=0 pos3.x=10 pos3.y=0
+Soy el peaton con PID 11398.Avanzo pos1.x=33, pos1.y=14 pos3.x=34 pos3.y=14
+Soy el peaton con PID 11394.Avanzo pos1.x=10, pos1.y=0 pos3.x=9 pos3.y=0
+Soy el padre con PID 11386 con tipoProceso 1
+Soy el peaton con PID 11398.Avanzo pos1.x=34, pos1.y=14 pos3.x=35 pos3.y=14
+Soy el peaton con PID 11394.Avanzo pos1.x=9, pos1.y=0 pos3.x=8 pos3.y=0
+Soy el peaton con PID 11399. pos1.x=24, pos1.y=15 pos2.x=24 pos2.y=16
+Soy el padre con PID 11386 con tipoProceso 1
+Soy el coche con PID 11404. pos1.x=-1, pos1.y=-1 pos2.x=0 pos2.y=0
