@@ -10,27 +10,18 @@
 #include <sys/wait.h>
 #include "cruce.h"
 
-#define SEM_WAIT(x,n)\
-  x.sem_num=n;\
-  x.sem_op=-1;\
-  x.sem_flg=0;
-
-#define SEM_SIGNAL(x,n)\
-  x.sem_num=n;\
-  x.sem_op=1;\
-  x.sem_flg=0;
-
 #define LONGITUD 128
 
 // struct para mensajes 
 struct mensaje { 
     long tipo_msj; 
-    char txt_msj[LONGITUD]; 
+    char txt_msj[LONGITUD];
 } message; 
 struct datos{
 	int semid, memid;
 	int procesos;
 	int argumentos;
+	int fase;
 	pid_t pidDelPadre;
 	pid_t pidDeLosHijos[1089];
 }datos;
@@ -43,7 +34,7 @@ void ESPERA(struct sembuf sops, int numSem, int semID)
 
   if(semop(semID,&sops,1)==-1)
   {
-	perror("Operación WAIT en semáforo");
+	perror("Error en operación WAIT en semáforo");
 	exit(6);
   }
 }
@@ -56,9 +47,80 @@ void SENHAL(struct sembuf sops, int numSem, int semID)
 
   if(semop(semID,&sops,1)==-1)
   {
-	perror("Operación SIGNAL en semáforo");
+	perror("Error en operación SIGNAL en semáforo");
 	exit(6);
   }
+}
+
+void ambar(){
+	
+	if(datos.fase ==1){ 
+	CRUCE_pon_semAforo(SEM_C2,AMARILLO);
+	pausa();
+	pausa();
+	}
+
+	if(datos.fase ==2){ 
+	CRUCE_pon_semAforo(SEM_C1 ,AMARILLO);
+	pausa();
+	pausa();
+	}
+
+	if(datos.fase ==3){ 
+	CRUCE_pon_semAforo(SEM_C1,AMARILLO);
+	CRUCE_pon_semAforo(SEM_C2,AMARILLO);
+	pausa();
+	pausa();
+	}
+}
+
+int cambiarColorSem()
+{
+	int i;
+
+	for(;;){ 
+		//Primera fase duracion 6 pausas
+
+			CRUCE_pon_semAforo(SEM_C1,VERDE);
+			CRUCE_pon_semAforo(SEM_P1,ROJO);	
+			ambar();
+			CRUCE_pon_semAforo(SEM_C2,ROJO);
+			CRUCE_pon_semAforo(SEM_P2,VERDE);
+
+			for(i=0; i<6; i++)
+			{
+				pausa();
+			}
+
+		datos.fase=2;
+
+		//Segunda fase duracion 9 pausas
+			ambar();
+			CRUCE_pon_semAforo(SEM_C1,ROJO);
+			CRUCE_pon_semAforo(SEM_P1,ROJO);
+			CRUCE_pon_semAforo(SEM_C2,VERDE);
+			CRUCE_pon_semAforo(SEM_P2,ROJO);
+	
+			for(i=0; i<9; i++)
+			{
+				pausa();
+			}
+
+		datos.fase = 3;
+		//Tercera fase duracion 12 pausas
+			ambar();
+			CRUCE_pon_semAforo(SEM_C1,ROJO);
+			CRUCE_pon_semAforo(SEM_C2,ROJO);
+			CRUCE_pon_semAforo(SEM_P2,ROJO);
+			CRUCE_pon_semAforo(SEM_P1,VERDE);
+
+			for(i=0; i<12; i++)
+			{
+				pausa();
+			}
+
+			datos.fase = 1;
+	}
 }
 
 void ayuda()
@@ -138,6 +200,7 @@ int main (int argc, char *argv[]){
 	datos.argumentos = argc;
 	struct posiciOn pos1, pos2, pos3;
 	struct sembuf sops;
+	datos.fase=1;
 
 	//Comprobamos que los parametros introducidos son los correctos
 	/*
@@ -183,12 +246,6 @@ int main (int argc, char *argv[]){
 		kill(getpid(),SIGTERM);							//Llamar manejadora
 	}
 
-	if(semctl(datos.semid,0,SETVAL,1) == -1)
-    {
-        perror("Error en la inicialización del semáforo de procesos");
-		kill(getpid(),SIGTERM);		
-    }
-
 	if(semctl(datos.semid,1,SETVAL,1) == -1)
     {
         perror("Error en la inicialización del semáforo de procesos");
@@ -211,21 +268,24 @@ int main (int argc, char *argv[]){
 		perror("Error al llamar a CRUCE_inicio");
 		kill(getpid(),SIGTERM);							//Llamamos a la manejadora
 	}
+
+	switch(fork())
+	{
+		case -1:	 
+			perror("Error al crear el proceso Gestor Semafórico");
+			kill(getpid(),SIGTERM);							//Llamamos a la manejadora
+			break;
+		case 0: 
+			cambiarColorSem();						//Gestor Semafórico
+			break;
+	}
+		
 	for(;;){ 
+		ESPERA(sops,1,datos.semid);
+
 		tipoProceso=CRUCE_nuevo_proceso();
 		fprintf(stderr,"Soy el padre con PID %d con tipoProceso %d\n",getpid(),tipoProceso);
 		//Creamos un peaton y lo movemos para ver las posiciones por las que pasa
-		/*
-		SEM_WAIT(sops,0);
-		if(semop(datos.semid,&sops,1)==-1)
-		{
-			perror("Operación WAIT en semáforo");
-			exit(6);
-		}
-		*/
-
-		ESPERA(sops,0,datos.semid);
-
 
 		if(CRUCE_nuevo_proceso()==PEAToN){
 			//Creamos un nuevo proceso para que gestione el peaton
@@ -252,15 +312,12 @@ int main (int argc, char *argv[]){
 				}while(pos3.y>=0);
 
 				CRUCE_fin_peatOn();
-
+				SENHAL(sops,1,datos.semid); //Suma uno al semaforo
 				return 0;
 			}
 
-			//SEM_SIGNAL(sops,0);
-
 		} else {
 			//Creamos un nuevo proceso para que gestione el coche
-			//SEM_WAIT(sops,1);
 
 			switch (fork())
 			{
@@ -282,21 +339,11 @@ int main (int argc, char *argv[]){
 				}while(pos3.y>=0);
 
 				CRUCE_fin_coche();
-				
+				SENHAL(sops,1,datos.semid); //Suma uno al semaforo
 				return 0;	
 			}
-			//SEM_SIGNAL(sops,1);
 		}
 		//pause();
-		/*
-		SEM_SIGNAL(sops,0);
-		if(semop(datos.semid,&sops,1)==-1)
-		{
-			perror("Operación SIGNAL en semáforo");
-			exit(6);
-		}
-		*/
-		SENHAL(sops,0,datos.semid);
 	}
 	
 	CRUCE_fin();
