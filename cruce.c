@@ -13,12 +13,15 @@
 #define LONGITUD 128
 
 // struct para mensajes 
-struct mensaje { 
-    long tipo_msj; 
+struct mensaje {
+	int boolean;
+    long tipo; 
     char txt_msj[LONGITUD];
-} message; 
+} message;
+
 struct datos{
 	int semid, memid;
+	int buzon;
 	int procesos;
 	int argumentos;
 	int fase;
@@ -76,7 +79,14 @@ void ambar(){
 
 int cambiarColorSem()
 {
-	int i;
+	int i, recibir;
+
+	recibir = msgrcv(buzon, message, sizeof(message)-sizeof(long), 0, MSG_NOERROR);
+		if(recibir==-1)
+		{
+			perror("Error al recibir el mensaje");
+			exit(-1);
+		}
 
 	for(;;){ 
 		//Primera fase duracion 6 pausas
@@ -153,6 +163,10 @@ void terminar (int sig) {
 	int i;
 	pid_t self = getpid();
 
+	if(datos.pidDelPadre != self){ 
+		_exit(0);
+	}
+
 	//Eliminamos los semaforos
 	if(datos.semid != -1){
 		semctl(datos.semid,1,IPC_RMID);
@@ -169,8 +183,10 @@ void terminar (int sig) {
 			perror("Memoria no liberada correctamente.\n");
 		}
 	}
-	if(datos.pidDelPadre != self){ 
-		_exit(0);
+	if(datos.buzon !=-1){
+		if(msgctl(datos.buzon,IPC_RMID,NULL)==-1){
+			perror("Buzon no eliminado correctamente.\n");
+		}
 	}
 
 	for(i=0; i< datos.procesos-1; ++i){
@@ -188,13 +204,15 @@ void terminar (int sig) {
 			break;
 		}
 	}
-	printf("Programa acabado correctamente.\n");
+
+	printf("Programa acabado correctamente.\n"); //Quitarlo antes de entregar
+	CRUCE_fin();
 	exit(0);
 }
 
 
 int main (int argc, char *argv[]){
-	int numProc, velocidad;
+	int numProc, velocidad, buzon;
 	char * zona;
 	int tipoProceso;
 	datos.argumentos = argc;
@@ -242,44 +260,51 @@ int main (int argc, char *argv[]){
 	//Creamos los semaforos y la memoria
 	datos.semid=semget(IPC_PRIVATE, 2, IPC_CREAT|0600);
 	if(datos.semid==-1){
-		perror("Error al crear los semaforos");
+		perror("Error al crear los semaforos.\n");
 		kill(getpid(),SIGTERM);							//Llamar manejadora
 	}
 
 	if(semctl(datos.semid,1,SETVAL,1) == -1)
     {
-        perror("Error en la inicialización del semáforo de procesos");
+        perror("Error en la inicialización del semáforo de procesos.\n");
 		kill(getpid(),SIGTERM);		
     }
 
 	datos.memid=shmget(IPC_PRIVATE, 256, IPC_CREAT|0600);
 	if(datos.memid==-1){
-		perror("Error al crear la zona de memoria compartida");
+		perror("Error al crear la zona de memoria compartida.\n");
 		kill(getpid(),SIGTERM);							//Llamar manejadora
 	}
 	
 	zona=shmat(datos.memid, NULL, 0);
 	if(zona==(char *)-1){
-		perror("Error asociando zona de memoria compartida");
+		perror("Error asociando zona de memoria compartida.\n");
 		kill(getpid(),SIGTERM);							//Llamamos a la manejadora
+	}
+
+	datos.buzon = msgget(IPC_PRIVATE, IPC_CREAT | 0600);
+	if(datos.buzon==-1)
+	{
+		perror("Error al crear el buzon.\n");
+		kill(getpid(),SIGTERM);							//Llamar manejadora
 	}
 		
 	if(CRUCE_inicio(velocidad, numProc, datos.semid, zona)==-1){
-		perror("Error al llamar a CRUCE_inicio");
+		perror("Error al llamar a CRUCE_inicio.\n");
 		kill(getpid(),SIGTERM);							//Llamamos a la manejadora
 	}
 
 	switch(fork())
 	{
 		case -1:	 
-			perror("Error al crear el proceso Gestor Semafórico");
+			perror("Error al crear el proceso Gestor Semafórico.\n");
 			kill(getpid(),SIGTERM);							//Llamamos a la manejadora
 			break;
 		case 0: 
 			cambiarColorSem();						//Gestor Semafórico
 			break;
 	}
-		
+	
 	for(;;){ 
 		ESPERA(sops,1,datos.semid);
 
@@ -293,10 +318,9 @@ int main (int argc, char *argv[]){
 			switch (fork())
 			{
 			case -1:
-				perror("Error al crear el proceso peaton");
+				perror("Error al crear el proceso peaton.\n");
 				kill(getpid(),SIGTERM);							//Llamamos a la manejadora
 			case 0:
-				sleep(5);
 				//Proceso peaton
 
 				pos1=CRUCE_inicio_peatOn_ext(&pos2);
@@ -305,6 +329,29 @@ int main (int argc, char *argv[]){
 
 				do{ 
 					pos3=CRUCE_avanzar_peatOn(pos1);
+					if(pos3.y==12){
+						for(i=21;i<28;i++){
+							if((pos3.x==i){
+									//Mandar mensaje a gestor semafórico
+									//Esperar mensaje de gestor semaforico
+								break;
+							}
+						}
+					}
+					if(pos3.x==29){
+						for(i=13;i<16;i++){
+							if((pos3.y==i){
+									//Mandar mensaje a gestor semafórico
+									message.boolean=1;
+									if(msgsnd(datos.buzon,message,sizeof(message)-sizeof(long),SEM_P1)==-1){
+										//mandar el error
+									}
+									//Esperar mensaje de gestor semaforico
+									msgrcv(datos.buzon,message,sizeof(message)-sizeof(long),SEM_P1,0);
+								break;
+							}	
+						}
+					}	
 					fprintf(stderr, "Soy el peaton con PID %d.Avanzo pos1.x=%d, pos1.y=%d pos3.x=%d pos3.y=%d\n", getpid(),
 					pos1.x,pos1.y,pos3.x,pos3.y);
 					pausa();
@@ -322,12 +369,12 @@ int main (int argc, char *argv[]){
 			switch (fork())
 			{
 			case -1:
-				perror("Error al crear el proceso coche");
+				perror("Error al crear el proceso coche.\n");
 				kill(getpid(),SIGTERM);							//Llamamos a la manejadora
 			case 0:
 				//Proceso coche
+				pause();
 				pos1=CRUCE_inicio_coche();
-
 				fprintf(stderr, "Soy el coche con PID %d. pos1.x=%d, pos1.y=%d pos2.x=%d pos2.y=%d\n", getpid(),
 					pos1.x,pos1.y,pos2.x,pos2.y);
 				do{ 
@@ -345,8 +392,6 @@ int main (int argc, char *argv[]){
 		}
 		//pause();
 	}
-	
-	CRUCE_fin();
 	return 0;
 }
 	
