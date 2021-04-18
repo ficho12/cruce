@@ -1,6 +1,7 @@
 #include <sys/sem.h>
 #include <sys/shm.h>
 #include <sys/types.h>
+#include <sys/msg.h>
 #include <unistd.h>
 #include <stdlib.h>
 #include <stdio.h>
@@ -14,10 +15,10 @@
 
 // struct para mensajes 
 struct mensaje {
-	int boolean;
     long tipo; 
+	int boolean;
     char txt_msj[LONGITUD];
-} message;
+}message;
 
 struct datos{
 	int semid, memid;
@@ -57,8 +58,8 @@ void SENHAL(struct sembuf sops, int numSem, int semID)
 
 void ambar(){
 	
-	if(datos.fase ==1){ 
-	CRUCE_pon_semAforo(SEM_C2,AMARILLO);
+	if(datos.fase ==0){ 
+	CRUCE_pon_semAforo(SEM_C2,AMARILLO);//Solo se hace la primera vez
 	pausa();
 	pausa();
 	}
@@ -70,7 +71,6 @@ void ambar(){
 	}
 
 	if(datos.fase ==3){ 
-	CRUCE_pon_semAforo(SEM_C1,AMARILLO);
 	CRUCE_pon_semAforo(SEM_C2,AMARILLO);
 	pausa();
 	pausa();
@@ -81,21 +81,26 @@ int cambiarColorSem()
 {
 	int i, recibir;
 
-	recibir = msgrcv(buzon, message, sizeof(message)-sizeof(long), 0, MSG_NOERROR);
-		if(recibir==-1)
-		{
-			perror("Error al recibir el mensaje");
-			exit(-1);
-		}
+	struct mensaje msg;
 
 	for(;;){ 
 		//Primera fase duracion 6 pausas
-
 			CRUCE_pon_semAforo(SEM_C1,VERDE);
-			CRUCE_pon_semAforo(SEM_P1,ROJO);	
-			ambar();
+			CRUCE_pon_semAforo(SEM_P1,ROJO); 
+
+			//ambar();//Solo se ejecuta una vez
+			if(datos.fase==0){
+				ambar();
+			}
 			CRUCE_pon_semAforo(SEM_C2,ROJO);
 			CRUCE_pon_semAforo(SEM_P2,VERDE);
+
+			msg.tipo=SEM_P2;
+
+			if(msgsnd(datos.buzon,&msg,sizeof(message)-sizeof(long),0)==-1){
+				perror("Error al enviar el mensaje en el Gestor Semaforico");
+				kill(getpid(),SIGTERM);
+			}
 
 			for(i=0; i<6; i++)
 			{
@@ -119,10 +124,16 @@ int cambiarColorSem()
 		datos.fase = 3;
 		//Tercera fase duracion 12 pausas
 			ambar();
-			CRUCE_pon_semAforo(SEM_C1,ROJO);
 			CRUCE_pon_semAforo(SEM_C2,ROJO);
-			CRUCE_pon_semAforo(SEM_P2,ROJO);
+
 			CRUCE_pon_semAforo(SEM_P1,VERDE);
+
+			msg.tipo=SEM_P1;
+
+			if(msgsnd(datos.buzon,&msg,sizeof(message)-sizeof(long),0)==-1){
+				perror("Error al enviar el mensaje en el Gestor Semaforico");
+				kill(getpid(),SIGTERM);				
+			}
 
 			for(i=0; i<12; i++)
 			{
@@ -212,13 +223,15 @@ void terminar (int sig) {
 
 
 int main (int argc, char *argv[]){
-	int numProc, velocidad, buzon;
+	int numProc, velocidad, buzon, flag=0;
 	char * zona;
 	int tipoProceso;
 	datos.argumentos = argc;
 	struct posiciOn pos1, pos2, pos3;
 	struct sembuf sops;
-	datos.fase=1;
+	struct mensaje msg;
+	datos.fase=0;
+	int i=0;
 
 	//Comprobamos que los parametros introducidos son los correctos
 	/*
@@ -229,19 +242,19 @@ int main (int argc, char *argv[]){
 	}
 	*/
 
-	if(!verify(argv[1]))
-		numProc = atoi(argv[1]);
+	if(!verify(argv[2]))
+		numProc = atoi(argv[2]);
 
-	if(numProc < 1){
-		printf("Error, el numero de procesos tiene que ser mayor o igual que uno.\n\n");
+	if(numProc < 2){
+		printf("Error, el numero de procesos tiene que ser mayor o igual que dos.\n\n");
 		ayuda();
 		return 2;
 	}
 
-	if(!verify(argv[2]))
-		velocidad = atoi(argv[2]);
+	if(!verify(argv[1]))
+		velocidad = atoi(argv[1]);
 
-	if(velocidad < 0){
+	if(velocidad <= 0){
 		printf("Error. El parametro velocidad debe ser igual o mayor que cero.\n\n");
 		ayuda();
 		return 3;
@@ -264,7 +277,7 @@ int main (int argc, char *argv[]){
 		kill(getpid(),SIGTERM);							//Llamar manejadora
 	}
 
-	if(semctl(datos.semid,1,SETVAL,1) == -1)
+	if(semctl(datos.semid,1,SETVAL,numProc) == -1)
     {
         perror("Error en la inicialización del semáforo de procesos.\n");
 		kill(getpid(),SIGTERM);		
@@ -314,6 +327,7 @@ int main (int argc, char *argv[]){
 
 		if(CRUCE_nuevo_proceso()==PEAToN){
 			//Creamos un nuevo proceso para que gestione el peaton
+			ESPERA(sops,1,datos.semid);
 			
 			switch (fork())
 			{
@@ -329,29 +343,39 @@ int main (int argc, char *argv[]){
 
 				do{ 
 					pos3=CRUCE_avanzar_peatOn(pos1);
-					if(pos3.y==12){
-						for(i=21;i<28;i++){
-							if((pos3.x==i){
-									//Mandar mensaje a gestor semafórico
-									//Esperar mensaje de gestor semaforico
-								break;
-							}
+					if((pos3.y==12) && (flag==0)){
+
+						fprintf(stderr, "Soy el peaton con PID %d.Entro en el if Flag P2\n", getpid());
+
+						//for(i=21;i<28;i++){
+							//if(pos3.x==i){
+						if((pos3.x>=21) && (pos3.x<=27)){
+							fprintf(stderr, "Soy el peaton con PID %d.Entro en el if MSGRCV P2\n", getpid());
+							msgrcv(datos.buzon,&msg,sizeof(message)-sizeof(long),SEM_P2,0); //Problema porque type no es long(?)
+							//Esperar mensaje de gestor semaforico
+							flag=1;
+							fprintf(stderr, "Soy el peaton con PID %d.Pongo flag a 1\n", getpid());
 						}
+						
 					}
-					if(pos3.x==29){
-						for(i=13;i<16;i++){
-							if((pos3.y==i){
-									//Mandar mensaje a gestor semafórico
-									message.boolean=1;
-									if(msgsnd(datos.buzon,message,sizeof(message)-sizeof(long),SEM_P1)==-1){
-										//mandar el error
-									}
-									//Esperar mensaje de gestor semaforico
-									msgrcv(datos.buzon,message,sizeof(message)-sizeof(long),SEM_P1,0);
-								break;
-							}	
+					
+					if((pos3.x==29) && (flag==0)){
+
+						fprintf(stderr, "Soy el peaton con PID %d.Entro en el if Flag P1\n", getpid());
+
+
+						//for(i=13;i<16;i++){
+							//if(pos3.y==i){
+						if((pos3.y>=13) && (pos3.y<=15)){
+							fprintf(stderr, "Soy el peaton con PID %d.Entro en el if MSGRCV P1\n", getpid());
+							msgrcv(datos.buzon,&msg,sizeof(message)-sizeof(long),SEM_P1,0);
+							//Esperar mensaje de gestor semaforico	
+							flag=1;
+							fprintf(stderr, "Soy el peaton con PID %d.Pongo flag a 1\n", getpid());
 						}
-					}	
+								
+					}
+						
 					fprintf(stderr, "Soy el peaton con PID %d.Avanzo pos1.x=%d, pos1.y=%d pos3.x=%d pos3.y=%d\n", getpid(),
 					pos1.x,pos1.y,pos3.x,pos3.y);
 					pausa();
@@ -359,11 +383,13 @@ int main (int argc, char *argv[]){
 				}while(pos3.y>=0);
 
 				CRUCE_fin_peatOn();
-				SENHAL(sops,1,datos.semid); //Suma uno al semaforo
-				return 0;
+				//SENHAL(sops,1,datos.semid); //Suma uno al semaforo
 			}
 
-		} else {
+			SENHAL(sops,1,datos.semid);
+	
+
+		} /*else {
 			//Creamos un nuevo proceso para que gestione el coche
 
 			switch (fork())
@@ -373,7 +399,7 @@ int main (int argc, char *argv[]){
 				kill(getpid(),SIGTERM);							//Llamamos a la manejadora
 			case 0:
 				//Proceso coche
-				pause();
+				/*
 				pos1=CRUCE_inicio_coche();
 				fprintf(stderr, "Soy el coche con PID %d. pos1.x=%d, pos1.y=%d pos2.x=%d pos2.y=%d\n", getpid(),
 					pos1.x,pos1.y,pos2.x,pos2.y);
@@ -384,12 +410,12 @@ int main (int argc, char *argv[]){
 					pausa_coche();
 					pos1=pos3;
 				}while(pos3.y>=0);
-
+				
 				CRUCE_fin_coche();
 				SENHAL(sops,1,datos.semid); //Suma uno al semaforo
 				return 0;	
 			}
-		}
+		}*/
 		//pause();
 	}
 	return 0;
