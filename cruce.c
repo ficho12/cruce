@@ -79,12 +79,13 @@ void ambar(){
 
 int cambiarColorSem()
 {
-	int i, recibir;
+	int i, recibir, msgReturn;
 
 	struct mensaje msg;
 
 	for(;;){ 
 		//Primera fase duracion 6 pausas
+
 			CRUCE_pon_semAforo(SEM_C1,VERDE);
 			CRUCE_pon_semAforo(SEM_P1,ROJO); 
 
@@ -95,12 +96,37 @@ int cambiarColorSem()
 			CRUCE_pon_semAforo(SEM_C2,ROJO);
 			CRUCE_pon_semAforo(SEM_P2,VERDE);
 
+			do{
+				msgReturn = msgrcv(datos.buzon,&msg,sizeof(message)-sizeof(long),SEM_P2+10,IPC_NOWAIT);
+				
+				fprintf(stderr,"msgReturn es %d\n",msgReturn);
+				
+				if(msgReturn != -1){
+					msg.tipo=SEM_P2;
+					if(msgsnd(datos.buzon,&msg,sizeof(message)-sizeof(long),0)==-1){
+						perror("Error al enviar el mensaje en el Gestor Semaforico");
+						kill(getpid(),SIGTERM);
+				}
+				}
+			}while(msgReturn != -1);
+
+			/* 
+			if(msg.tipo==SEM_P1){
+				msgrcv(datos.buzon,&msg,sizeof(message)-sizeof(long),SEM_P1,IPC_NOWAIT);
+				if(msgsnd(datos.buzon,&msg,sizeof(message)-sizeof(long),0)==-1){
+					perror("Error al enviar el mensaje en el Gestor Semaforico");
+					kill(getpid(),SIGTERM);
+				}
+			}
+			
 			msg.tipo=SEM_P2;
 
 			if(msgsnd(datos.buzon,&msg,sizeof(message)-sizeof(long),0)==-1){
 				perror("Error al enviar el mensaje en el Gestor Semaforico");
 				kill(getpid(),SIGTERM);
 			}
+
+			*/
 
 			for(i=0; i<6; i++)
 			{
@@ -128,12 +154,28 @@ int cambiarColorSem()
 
 			CRUCE_pon_semAforo(SEM_P1,VERDE);
 
+			do{
+				msgReturn = msgrcv(datos.buzon,&msg,sizeof(message)-sizeof(long),SEM_P1+10,IPC_NOWAIT);
+				
+				
+				if(msgReturn != -1){
+					msg.tipo=SEM_P1;
+					if(msgsnd(datos.buzon,&msg,sizeof(message)-sizeof(long),0)==-1){
+						perror("Error al enviar el mensaje en el Gestor Semaforico");
+						kill(getpid(),SIGTERM);
+					}
+				}
+			}while(msgReturn != -1);
+
+			/*
 			msg.tipo=SEM_P1;
 
 			if(msgsnd(datos.buzon,&msg,sizeof(message)-sizeof(long),0)==-1){
 				perror("Error al enviar el mensaje en el Gestor Semaforico");
 				kill(getpid(),SIGTERM);				
 			}
+			
+			*/
 
 			for(i=0; i<12; i++)
 			{
@@ -177,28 +219,34 @@ void terminar (int sig) {
 	if(datos.pidDelPadre != self){ 
 		_exit(0);
 	}
-
+	
 	//Eliminamos los semaforos
-	if(datos.semid != -1){
-		semctl(datos.semid,1,IPC_RMID);
-	//Esto no funciona bien
-		/*if(semctl(datos.semid,1,IPC_RMID)==-1){
+	if(datos.semid != -1){ 
+		if(semctl(datos.semid,2,IPC_RMID)<0){
 			perror("Semaforos no eliminados correctamente.\n");
 			//MAndar otra vez o se finaliza 
 			exit (0);
-		}*/
+		} else {
+			printf("Semaforos eliminados correctamente.\n");
+		}
 	}
+
 	//Eliminamos la memoria compartida
 	if(datos.memid != -1){
 		if(shmctl(datos.memid,IPC_RMID,NULL)==-1){
 			perror("Memoria no liberada correctamente.\n");
+		}else {
+			perror("memoria eliminados correctamente.\n");
 		}
 	}
+	
 	if(datos.buzon !=-1){
 		if(msgctl(datos.buzon,IPC_RMID,NULL)==-1){
 			perror("Buzon no eliminado correctamente.\n");
 		}
 	}
+
+	
 
 	for(i=0; i< datos.procesos-1; ++i){
 
@@ -241,6 +289,8 @@ int main (int argc, char *argv[]){
 		return 1;
 	}
 	*/
+
+	datos.pidDelPadre = getpid();
 
 	if(!verify(argv[2]))
 		numProc = atoi(argv[2]);
@@ -343,14 +393,19 @@ int main (int argc, char *argv[]){
 
 				do{ 
 					pos3=CRUCE_avanzar_peatOn(pos1);
-					if((pos3.y==12) && (flag==0)){
+					if((pos3.y==11) && (flag==0)){
 
 						fprintf(stderr, "Soy el peaton con PID %d.Entro en el if Flag P2\n", getpid());
 
-						//for(i=21;i<28;i++){
-							//if(pos3.x==i){
 						if((pos3.x>=21) && (pos3.x<=27)){
 							fprintf(stderr, "Soy el peaton con PID %d.Entro en el if MSGRCV P2\n", getpid());
+							
+							msg.tipo=SEM_P2+10;
+							if(msgsnd(datos.buzon,&msg,sizeof(message)-sizeof(long),0)==-1){
+								perror("Error al enviar el mensaje en el Gestor Semaforico");
+								kill(getpid(),SIGTERM);
+							}
+
 							msgrcv(datos.buzon,&msg,sizeof(message)-sizeof(long),SEM_P2,0); //Problema porque type no es long(?)
 							//Esperar mensaje de gestor semaforico
 							flag=1;
@@ -359,15 +414,21 @@ int main (int argc, char *argv[]){
 						
 					}
 					
-					if((pos3.x==29) && (flag==0)){
+					if((pos3.x==30) && (flag==0)){
 
 						fprintf(stderr, "Soy el peaton con PID %d.Entro en el if Flag P1\n", getpid());
 
 
-						//for(i=13;i<16;i++){
-							//if(pos3.y==i){
 						if((pos3.y>=13) && (pos3.y<=15)){
 							fprintf(stderr, "Soy el peaton con PID %d.Entro en el if MSGRCV P1\n", getpid());
+
+
+							msg.tipo=SEM_P1+10;
+							if(msgsnd(datos.buzon,&msg,sizeof(message)-sizeof(long),0)==-1){
+								perror("Error al enviar el mensaje en el Gestor Semaforico");
+								kill(getpid(),SIGTERM);
+							}
+
 							msgrcv(datos.buzon,&msg,sizeof(message)-sizeof(long),SEM_P1,0);
 							//Esperar mensaje de gestor semaforico	
 							flag=1;
@@ -389,7 +450,7 @@ int main (int argc, char *argv[]){
 			SENHAL(sops,1,datos.semid);
 	
 
-		} /*else {
+		} else {
 			//Creamos un nuevo proceso para que gestione el coche
 
 			switch (fork())
@@ -399,7 +460,7 @@ int main (int argc, char *argv[]){
 				kill(getpid(),SIGTERM);							//Llamamos a la manejadora
 			case 0:
 				//Proceso coche
-				/*
+				
 				pos1=CRUCE_inicio_coche();
 				fprintf(stderr, "Soy el coche con PID %d. pos1.x=%d, pos1.y=%d pos2.x=%d pos2.y=%d\n", getpid(),
 					pos1.x,pos1.y,pos2.x,pos2.y);
@@ -415,7 +476,7 @@ int main (int argc, char *argv[]){
 				SENHAL(sops,1,datos.semid); //Suma uno al semaforo
 				return 0;	
 			}
-		}*/
+		}
 		//pause();
 	}
 	return 0;
