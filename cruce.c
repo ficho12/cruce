@@ -87,7 +87,21 @@ int cambiarColorSem()
 		//Primera fase duracion 6 pausas
 
 			CRUCE_pon_semAforo(SEM_C1,VERDE);
-			CRUCE_pon_semAforo(SEM_P1,ROJO); 
+			CRUCE_pon_semAforo(SEM_P1,ROJO);
+
+			do{
+				msgReturn = msgrcv(datos.buzon,&msg,sizeof(message)-sizeof(long),SEM_C1+10,IPC_NOWAIT);
+				
+				fprintf(stderr,"msgReturn es %d\n",msgReturn);
+				
+				if(msgReturn != -1){
+					msg.tipo=SEM_C1;
+					if(msgsnd(datos.buzon,&msg,sizeof(message)-sizeof(long),0)==-1){
+						perror("Error al enviar el mensaje en el Gestor Semaforico");
+						kill(getpid(),SIGTERM);
+				}
+				}
+			}while(msgReturn != -1);
 
 			//ambar();//Solo se ejecuta una vez
 			if(datos.fase==0){
@@ -141,6 +155,20 @@ int cambiarColorSem()
 			CRUCE_pon_semAforo(SEM_P1,ROJO);
 			CRUCE_pon_semAforo(SEM_C2,VERDE);
 			CRUCE_pon_semAforo(SEM_P2,ROJO);
+
+			do{
+				msgReturn = msgrcv(datos.buzon,&msg,sizeof(message)-sizeof(long),SEM_C2+10,IPC_NOWAIT);
+				
+				fprintf(stderr,"msgReturn es %d\n",msgReturn);
+				
+				if(msgReturn != -1){
+					msg.tipo=SEM_C2;
+					if(msgsnd(datos.buzon,&msg,sizeof(message)-sizeof(long),0)==-1){
+						perror("Error al enviar el mensaje en el Gestor Semaforico");
+						kill(getpid(),SIGTERM);
+				}
+				}
+			}while(msgReturn != -1);
 	
 			for(i=0; i<9; i++)
 			{
@@ -227,7 +255,7 @@ void terminar (int sig) {
 			//MAndar otra vez o se finaliza 
 			exit (0);
 		} else {
-			printf("Semaforos eliminados correctamente.\n");
+			perror("Semaforos eliminados correctamente.\n");
 		}
 	}
 
@@ -236,18 +264,18 @@ void terminar (int sig) {
 		if(shmctl(datos.memid,IPC_RMID,NULL)==-1){
 			perror("Memoria no liberada correctamente.\n");
 		}else {
-			perror("memoria eliminados correctamente.\n");
+			perror("Memoria eliminada correctamente.\n");
 		}
 	}
 	
 	if(datos.buzon !=-1){
 		if(msgctl(datos.buzon,IPC_RMID,NULL)==-1){
 			perror("Buzon no eliminado correctamente.\n");
+		}else {
+			perror("Buzon eliminado correctamente.\n");
 		}
 	}
-
 	
-
 	for(i=0; i< datos.procesos-1; ++i){
 
 		int status;
@@ -468,6 +496,39 @@ int main (int argc, char *argv[]){
 					pos3=CRUCE_avanzar_coche(pos1);
 					fprintf(stderr, "Soy el coche con PID avanzo %d. pos1.x=%d, pos1.y=%d pos3.x=%d pos3.y=%d\n", getpid(),
 					pos1.x,pos1.y,pos3.x,pos3.y);
+
+					if((pos3.x==17) && (flag==0)){
+
+						fprintf(stderr, "Soy el coche con PID %d.Entro en el if Flag P2\n", getpid());
+							
+						msg.tipo=SEM_C2+10;
+						if(msgsnd(datos.buzon,&msg,sizeof(message)-sizeof(long),0)==-1){
+							perror("Error al enviar el mensaje en el Gestor Semaforico");
+							kill(getpid(),SIGTERM);
+						}
+
+						msgrcv(datos.buzon,&msg,sizeof(message)-sizeof(long),SEM_C2,0); //Problema porque type no es long(?)
+						//Esperar mensaje de gestor semaforico
+						flag=1;
+						fprintf(stderr, "Soy el coche con PID %d.Pongo flag a 1\n", getpid());
+					}
+					
+					if((pos3.x==32) && (flag==0)){
+
+						fprintf(stderr, "Soy el coche con PID %d.Entro en el if Flag P1\n", getpid());
+
+						msg.tipo=SEM_C1+10;
+						if(msgsnd(datos.buzon,&msg,sizeof(message)-sizeof(long),0)==-1){
+							perror("Error al enviar el mensaje en el Gestor Semaforico");
+							kill(getpid(),SIGTERM);
+						}
+
+						msgrcv(datos.buzon,&msg,sizeof(message)-sizeof(long),SEM_C1,0);
+						//Esperar mensaje de gestor semaforico	
+						flag=1;
+						fprintf(stderr, "Soy el coche con PID %d.Pongo flag a 1\n", getpid());	
+					}
+
 					pausa_coche();
 					pos1=pos3;
 				}while(pos3.y>=0);
