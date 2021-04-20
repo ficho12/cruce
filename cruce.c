@@ -57,12 +57,6 @@ void SENHAL(struct sembuf sops, int numSem, int semID)
 }
 
 void ambar(){
-	
-	if(datos.fase ==0){ 
-	CRUCE_pon_semAforo(SEM_C2,AMARILLO);//Solo se hace la primera vez
-	pausa();
-	pausa();
-	}
 
 	if(datos.fase ==2){ 
 	CRUCE_pon_semAforo(SEM_C1 ,AMARILLO);
@@ -85,9 +79,9 @@ int cambiarColorSem()
 
 	for(;;){ 
 		//Primera fase duracion 6 pausas
-
-			CRUCE_pon_semAforo(SEM_C1,VERDE);
 			CRUCE_pon_semAforo(SEM_P1,ROJO);
+			CRUCE_pon_semAforo(SEM_C2,ROJO);
+			CRUCE_pon_semAforo(SEM_C1,VERDE);
 
 			do{
 				msgReturn = msgrcv(datos.buzon,&msg,sizeof(message)-sizeof(long),SEM_C1+10,IPC_NOWAIT);
@@ -102,11 +96,7 @@ int cambiarColorSem()
 					}
 				}
 			}while(msgReturn != -1);
-
-			if(datos.fase==0){
-				ambar();
-			}
-			CRUCE_pon_semAforo(SEM_C2,ROJO);
+			
 			CRUCE_pon_semAforo(SEM_P2,VERDE);
 
 			do{
@@ -123,24 +113,6 @@ int cambiarColorSem()
 				}
 			}while(msgReturn != -1);
 
-			/* 
-			if(msg.tipo==SEM_P1){
-				msgrcv(datos.buzon,&msg,sizeof(message)-sizeof(long),SEM_P1,IPC_NOWAIT);
-				if(msgsnd(datos.buzon,&msg,sizeof(message)-sizeof(long),0)==-1){
-					perror("Error al enviar el mensaje en el Gestor Semaforico");
-					kill(getpid(),SIGTERM);
-				}
-			}
-			
-			msg.tipo=SEM_P2;
-
-			if(msgsnd(datos.buzon,&msg,sizeof(message)-sizeof(long),0)==-1){
-				perror("Error al enviar el mensaje en el Gestor Semaforico");
-				kill(getpid(),SIGTERM);
-			}
-
-			*/
-
 			for(i=0; i<6; i++)
 			{
 				pausa();
@@ -151,9 +123,8 @@ int cambiarColorSem()
 		//Segunda fase duracion 9 pausas
 			ambar();
 			CRUCE_pon_semAforo(SEM_C1,ROJO);
-			CRUCE_pon_semAforo(SEM_P1,ROJO);
-			CRUCE_pon_semAforo(SEM_C2,VERDE);
 			CRUCE_pon_semAforo(SEM_P2,ROJO);
+			CRUCE_pon_semAforo(SEM_C2,VERDE);
 
 			do{
 				msgReturn = msgrcv(datos.buzon,&msg,sizeof(message)-sizeof(long),SEM_C2+10,IPC_NOWAIT);
@@ -165,7 +136,7 @@ int cambiarColorSem()
 					if(msgsnd(datos.buzon,&msg,sizeof(message)-sizeof(long),0)==-1){
 						perror("Error al enviar el mensaje en el Gestor Semaforico");
 						kill(getpid(),SIGTERM);
-				}
+					}
 				}
 			}while(msgReturn != -1);
 	
@@ -194,22 +165,10 @@ int cambiarColorSem()
 				}
 			}while(msgReturn != -1);
 
-			/*
-			msg.tipo=SEM_P1;
-
-			if(msgsnd(datos.buzon,&msg,sizeof(message)-sizeof(long),0)==-1){
-				perror("Error al enviar el mensaje en el Gestor Semaforico");
-				kill(getpid(),SIGTERM);				
-			}
-			
-			*/
-
 			for(i=0; i<12; i++)
 			{
 				pausa();
 			}
-
-			datos.fase = 1;
 	}
 }
 
@@ -408,7 +367,7 @@ int main (int argc, char *argv[]){
 		fprintf(stderr,"Soy el padre con PID %d con tipoProceso %d\n",getpid(),tipoProceso);
 		//Creamos un peaton y lo movemos para ver las posiciones por las que pasa
 
-		if(CRUCE_nuevo_proceso()==PEAToN){
+		if(tipoProceso==PEAToN){
 			//Creamos un nuevo proceso para que gestione el peaton
 			//ESPERA(sops,1,datos.semid);
 			
@@ -484,6 +443,7 @@ int main (int argc, char *argv[]){
 				}while((pos3.y>=0) || (pos3.x>=51));
 
 				CRUCE_fin_peatOn();
+				kill(getpid(), SIGKILL);
 				//SENHAL(sops,1,datos.semid); //Suma uno al semaforo
 			}
 
@@ -526,7 +486,7 @@ int main (int argc, char *argv[]){
 						fprintf(stderr, "Soy el coche con PID %d.Pongo flag a 1\n", getpid());
 					}
 					
-					if((pos3.y==4) && (flag==0)){
+					if((pos3.y==3) && (flag==0)){
 
 						fprintf(stderr, "Soy el coche con PID %d.Entro en el if Flag P1\n", getpid());
 
@@ -549,9 +509,10 @@ int main (int argc, char *argv[]){
 						j--;
 					pos1=pos3;
 
-				}while(pos3.y<=17);
+				}while(pos3.y<22);
 				
 				CRUCE_fin_coche();
+				kill(getpid(), SIGKILL);
 				//SENHAL(sops,1,datos.semid); //Suma uno al semaforo
 				//return 0;	
 			}
