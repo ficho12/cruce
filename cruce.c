@@ -486,7 +486,7 @@ int main (int argc, char *argv[]){
 						fprintf(stderr, "Soy el coche con PID %d.Pongo flag a 1\n", getpid());
 					}
 					
-					if((pos3.y==3) && (flag==0)){
+					if((pos3.y==2) && (flag==0)){
 
 						fprintf(stderr, "Soy el coche con PID %d.Entro en el if Flag P1\n", getpid());
 
@@ -509,7 +509,7 @@ int main (int argc, char *argv[]){
 						j--;
 					pos1=pos3;
 
-				}while(pos3.y<22);
+				}while(pos3.y!=-2);
 				
 				CRUCE_fin_coche();
 				kill(getpid(), SIGKILL);
