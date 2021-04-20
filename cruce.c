@@ -16,7 +16,6 @@
 // struct para mensajes 
 struct mensaje {
     long tipo; 
-	int boolean;
     char txt_msj[LONGITUD];
 }message;
 
@@ -84,12 +83,12 @@ int cambiarColorSem()
 			CRUCE_pon_semAforo(SEM_C1,VERDE);
 
 			do{
-				msgReturn = msgrcv(datos.buzon,&msg,sizeof(message)-sizeof(long),SEM_C1+10,IPC_NOWAIT);
+				msgReturn = msgrcv(datos.buzon,&msg,sizeof(message)-sizeof(long),SEM_C1+4+10,IPC_NOWAIT);
 				
 				fprintf(stderr,"msgReturn C1 es %d\n",msgReturn);
 				
 				if(msgReturn != -1){
-					msg.tipo=SEM_C1;
+					msg.tipo=SEM_C1+4;
 					if(msgsnd(datos.buzon,&msg,sizeof(message)-sizeof(long),0)==-1){
 						perror("Error al enviar el mensaje en el Gestor Semaforico");
 						kill(getpid(),SIGTERM);
@@ -490,17 +489,17 @@ int main (int argc, char *argv[]){
 						fprintf(stderr, "Soy el coche con PID %d.Pongo flag a 1\n", getpid());
 					}
 					
-					if((pos3.y==5) && (flag==0)){
+					if((pos3.y==6) && (flag==0)){
 
 						fprintf(stderr, "Soy el coche con PID %d.Entro en el if Flag C1\n", getpid());
 
-						msg.tipo=SEM_C1+10;
+						msg.tipo=SEM_C1+4+10;
 						if(msgsnd(datos.buzon,&msg,sizeof(message)-sizeof(long),0)==-1){
 							perror("Error al enviar el mensaje en el Gestor Semaforico");
 							kill(getpid(),SIGTERM);
 						}
 
-						if(msgrcv(datos.buzon,&msg,sizeof(message)-sizeof(long),SEM_C1,0)==-1){
+						if(msgrcv(datos.buzon,&msg,sizeof(message)-sizeof(long),SEM_C1+4,0)==-1){
 							perror("Error al recibir el mensaje en el semaforo C1.\n");
 						}
 						//Esperar mensaje de gestor semaforico	
