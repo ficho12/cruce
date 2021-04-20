@@ -99,11 +99,10 @@ int cambiarColorSem()
 					if(msgsnd(datos.buzon,&msg,sizeof(message)-sizeof(long),0)==-1){
 						perror("Error al enviar el mensaje en el Gestor Semaforico");
 						kill(getpid(),SIGTERM);
-				}
+					}
 				}
 			}while(msgReturn != -1);
 
-			//ambar();//Solo se ejecuta una vez
 			if(datos.fase==0){
 				ambar();
 			}
@@ -257,6 +256,8 @@ void terminar (int sig) {
 		} else {
 			perror("Semaforos eliminados correctamente.\n");
 		}
+	}else {
+			perror("Semaforos no eliminados.\n");
 	}
 
 	//Eliminamos la memoria compartida
@@ -266,6 +267,8 @@ void terminar (int sig) {
 		}else {
 			perror("Memoria eliminada correctamente.\n");
 		}
+	}else {
+			perror("Memoria no eliminada.\n");
 	}
 	
 	if(datos.buzon !=-1){
@@ -274,6 +277,8 @@ void terminar (int sig) {
 		}else {
 			perror("Buzon eliminado correctamente.\n");
 		}
+	}else {
+			perror("Buzon no eliminado.\n");
 	}
 	
 	for(i=0; i< datos.procesos-1; ++i){
@@ -307,7 +312,7 @@ int main (int argc, char *argv[]){
 	struct sembuf sops;
 	struct mensaje msg;
 	datos.fase=0;
-	int i=0;
+	int i=0,j=0,h=0;
 
 	//Comprobamos que los parametros introducidos son los correctos
 	/*
@@ -320,15 +325,6 @@ int main (int argc, char *argv[]){
 
 	datos.pidDelPadre = getpid();
 
-	if(!verify(argv[2]))
-		numProc = atoi(argv[2]);
-
-	if(numProc < 2){
-		printf("Error, el numero de procesos tiene que ser mayor o igual que dos.\n\n");
-		ayuda();
-		return 2;
-	}
-
 	if(!verify(argv[1]))
 		velocidad = atoi(argv[1]);
 
@@ -336,6 +332,15 @@ int main (int argc, char *argv[]){
 		printf("Error. El parametro velocidad debe ser igual o mayor que cero.\n\n");
 		ayuda();
 		return 3;
+	}
+
+	if(!verify(argv[2]))
+		numProc = atoi(argv[2]);
+
+	if(numProc < 2){
+		printf("Error, el numero de procesos tiene que ser mayor o igual que dos.\n\n");
+		ayuda();
+		return 2;
 	}
 	
 	//Configuramos la señal SIGINT
@@ -361,7 +366,7 @@ int main (int argc, char *argv[]){
 		kill(getpid(),SIGTERM);		
     }
 
-	datos.memid=shmget(IPC_PRIVATE, 256, IPC_CREAT|0600);
+	datos.memid=shmget(IPC_PRIVATE, 512, IPC_CREAT|0600);
 	if(datos.memid==-1){
 		perror("Error al crear la zona de memoria compartida.\n");
 		kill(getpid(),SIGTERM);							//Llamar manejadora
@@ -405,7 +410,7 @@ int main (int argc, char *argv[]){
 
 		if(CRUCE_nuevo_proceso()==PEAToN){
 			//Creamos un nuevo proceso para que gestione el peaton
-			ESPERA(sops,1,datos.semid);
+			//ESPERA(sops,1,datos.semid);
 			
 			switch (fork())
 			{
@@ -421,6 +426,7 @@ int main (int argc, char *argv[]){
 
 				do{ 
 					pos3=CRUCE_avanzar_peatOn(pos1);
+					
 					if((pos3.y==11) && (flag==0)){
 
 						fprintf(stderr, "Soy el peaton con PID %d.Entro en el if Flag P2\n", getpid());
@@ -467,15 +473,21 @@ int main (int argc, char *argv[]){
 						
 					fprintf(stderr, "Soy el peaton con PID %d.Avanzo pos1.x=%d, pos1.y=%d pos3.x=%d pos3.y=%d\n", getpid(),
 					pos1.x,pos1.y,pos3.x,pos3.y);
-					pausa();
+
+					if(h==0){
+						pausa();
+						h++;
+					}else
+						h--;
+				
 					pos1=pos3;
-				}while(pos3.y>=0);
+				}while((pos3.y>=0) || (pos3.x>=51));
 
 				CRUCE_fin_peatOn();
 				//SENHAL(sops,1,datos.semid); //Suma uno al semaforo
 			}
 
-			SENHAL(sops,1,datos.semid);
+			//SENHAL(sops,1,datos.semid);
 	
 
 		} else {
@@ -490,14 +502,15 @@ int main (int argc, char *argv[]){
 				//Proceso coche
 				
 				pos1=CRUCE_inicio_coche();
-				fprintf(stderr, "Soy el coche con PID %d. pos1.x=%d, pos1.y=%d pos2.x=%d pos2.y=%d\n", getpid(),
-					pos1.x,pos1.y,pos2.x,pos2.y);
+				fprintf(stderr, "Soy el coche con PID %d. pos1.x=%d, pos1.y=%d\n", getpid(),
+					pos1.x,pos1.y);
 				do{ 
 					pos3=CRUCE_avanzar_coche(pos1);
+					
 					fprintf(stderr, "Soy el coche con PID avanzo %d. pos1.x=%d, pos1.y=%d pos3.x=%d pos3.y=%d\n", getpid(),
 					pos1.x,pos1.y,pos3.x,pos3.y);
 
-					if((pos3.x==17) && (flag==0)){
+					if((pos3.x==13) && (flag==0)){
 
 						fprintf(stderr, "Soy el coche con PID %d.Entro en el if Flag P2\n", getpid());
 							
@@ -513,7 +526,7 @@ int main (int argc, char *argv[]){
 						fprintf(stderr, "Soy el coche con PID %d.Pongo flag a 1\n", getpid());
 					}
 					
-					if((pos3.x==32) && (flag==0)){
+					if((pos3.y==4) && (flag==0)){
 
 						fprintf(stderr, "Soy el coche con PID %d.Entro en el if Flag P1\n", getpid());
 
@@ -529,16 +542,22 @@ int main (int argc, char *argv[]){
 						fprintf(stderr, "Soy el coche con PID %d.Pongo flag a 1\n", getpid());	
 					}
 
-					pausa_coche();
+					if(j==0){
+						pausa_coche();
+						j++;
+					}else
+						j--;
 					pos1=pos3;
-				}while(pos3.y>=0);
+
+				}while(pos3.y<=17);
 				
 				CRUCE_fin_coche();
-				SENHAL(sops,1,datos.semid); //Suma uno al semaforo
-				return 0;	
+				//SENHAL(sops,1,datos.semid); //Suma uno al semaforo
+				//return 0;	
 			}
 		}
 		//pause();
+		SENHAL(sops,1,datos.semid); //Suma uno al semaforo
 	}
 	return 0;
 }
