@@ -13,6 +13,11 @@
 
 #define LONGITUD 128
 
+#define SEM_IPC_C1 2
+#define SEM_IPC_C2 3
+#define SEM_IPC_P1 4
+#define SEM_IPC_P2 5
+
 // struct para mensajes 
 struct mensaje {
     long tipo; 
@@ -27,6 +32,7 @@ struct datos{
 	int fase;
 	pid_t pidDelPadre;
 	pid_t pidDeLosHijos[1089];
+	int * myZona;
 }datos;
 
 void ESPERA(struct sembuf sops, int numSem, int semID)
@@ -75,43 +81,26 @@ int cambiarColorSem()
 	int i, recibir, msgReturn;
 
 	struct mensaje msg;
+	struct sembuf sops;
 
+	ESPERA(sops,SEM_IPC_C1,datos.semid); //Resta uno al semáforo
+	ESPERA(sops,SEM_IPC_P2,datos.semid); //Resta uno al semáforo
+	ESPERA(sops,SEM_IPC_C2,datos.semid); //Resta uno al semáforo
+	CRUCE_pon_semAforo(SEM_C2,ROJO);
 	for(;;){ 
 		//Primera fase duracion 6 pausas
+			ESPERA(sops,SEM_IPC_P1,datos.semid); //Resta uno al semáforo
 			CRUCE_pon_semAforo(SEM_P1,ROJO);
-			CRUCE_pon_semAforo(SEM_C2,ROJO);
+			//CRUCE_pon_semAforo(SEM_C2,ROJO);
 			CRUCE_pon_semAforo(SEM_C1,VERDE);
 
-			do{
-				msgReturn = msgrcv(datos.buzon,&msg,sizeof(message)-sizeof(long),SEM_C1+4+10,IPC_NOWAIT);
-				
-				fprintf(stderr,"msgReturn C1 es %d\n",msgReturn);
-				
-				if(msgReturn != -1){
-					msg.tipo=SEM_C1+4;
-					if(msgsnd(datos.buzon,&msg,sizeof(message)-sizeof(long),0)==-1){
-						perror("Error al enviar el mensaje en el Gestor Semaforico");
-						kill(getpid(),SIGTERM);
-					}
-					fprintf(stderr,"Envío el mensaje C1 desde Gestor Semaforico y msgReturn es: %d\n",msgReturn);
-				}
-			}while(msgReturn != -1);
-			
+			//Sincronización de semáforos para usar segmento de memoria
+
+			SENHAL(sops,SEM_IPC_C1,datos.semid); //Suma uno al semaforo
+		
 			CRUCE_pon_semAforo(SEM_P2,VERDE);
 
-			do{
-				msgReturn = msgrcv(datos.buzon,&msg,sizeof(message)-sizeof(long),SEM_P2+10,IPC_NOWAIT);
-				
-				fprintf(stderr,"msgReturn P2 es %d\n",msgReturn);
-				
-				if(msgReturn != -1){
-					msg.tipo=SEM_P2;
-					if(msgsnd(datos.buzon,&msg,sizeof(message)-sizeof(long),0)==-1){
-						perror("Error al enviar el mensaje en el Gestor Semaforico");
-						kill(getpid(),SIGTERM);
-				}
-				}
-			}while(msgReturn != -1);
+			SENHAL(sops,SEM_IPC_P2,datos.semid); //Suma uno al semaforo
 
 			for(i=0; i<6; i++)
 			{
@@ -121,25 +110,14 @@ int cambiarColorSem()
 		datos.fase=2;
 
 		//Segunda fase duracion 9 pausas
+			ESPERA(sops,SEM_IPC_C1,datos.semid); //Resta uno al semáforo
 			ambar();
 			CRUCE_pon_semAforo(SEM_C1,ROJO);
+			ESPERA(sops,SEM_IPC_P2,datos.semid); //Resta uno al semáforo
 			CRUCE_pon_semAforo(SEM_P2,ROJO);
 			CRUCE_pon_semAforo(SEM_C2,VERDE);
+			SENHAL(sops,SEM_IPC_C2,datos.semid); //Resta uno al semáforo
 
-			do{
-				msgReturn = msgrcv(datos.buzon,&msg,sizeof(message)-sizeof(long),SEM_C2+10,IPC_NOWAIT);
-				
-				fprintf(stderr,"msgReturn C2 es %d\n",msgReturn);
-				
-				if(msgReturn != -1){
-					msg.tipo=SEM_C2;
-					if(msgsnd(datos.buzon,&msg,sizeof(message)-sizeof(long),0)==-1){
-						perror("Error al enviar el mensaje en el Gestor Semaforico");
-						kill(getpid(),SIGTERM);
-					}
-				}
-			}while(msgReturn != -1);
-	
 			for(i=0; i<9; i++)
 			{
 				pausa();
@@ -147,24 +125,12 @@ int cambiarColorSem()
 
 		datos.fase = 3;
 		//Tercera fase duracion 12 pausas
+			ESPERA(sops,SEM_IPC_C2,datos.semid); //Resta uno al semáforo
 			ambar();
 			CRUCE_pon_semAforo(SEM_C2,ROJO);
-
 			CRUCE_pon_semAforo(SEM_P1,VERDE);
 
-			do{
-				msgReturn = msgrcv(datos.buzon,&msg,sizeof(message)-sizeof(long),SEM_P1+10,IPC_NOWAIT);
-				
-				fprintf(stderr,"msgReturn P1 es %d\n",msgReturn);
-				
-				if(msgReturn != -1){
-					msg.tipo=SEM_P1;
-					if(msgsnd(datos.buzon,&msg,sizeof(message)-sizeof(long),0)==-1){
-						perror("Error al enviar el mensaje en el Gestor Semaforico");
-						kill(getpid(),SIGTERM);
-					}
-				}
-			}while(msgReturn != -1);
+			SENHAL(sops,SEM_IPC_P1,datos.semid); //Suma uno al semaforo
 
 			for(i=0; i<12; i++)
 			{
@@ -314,19 +280,30 @@ int main (int argc, char *argv[]){
 	}
 	
 	//Creamos los semaforos y la memoria
-	datos.semid=semget(IPC_PRIVATE, 2, IPC_CREAT|0600);
+	datos.semid=semget(IPC_PRIVATE, 6, IPC_CREAT|0600);
 	if(datos.semid==-1){
 		perror("Error al crear los semaforos.\n");
 		kill(getpid(),SIGTERM);							//Llamar manejadora
 	}
-
+	//Primer semáforo para la biblioteca
+	//Segundo semáforo para el gestor semafórico
+	//Tercer semáforo C1, Cuarto C2, Quinto P1, Sexto P2
+	
 	if(semctl(datos.semid,1,SETVAL,numProc) == -1)
-    {
-        perror("Error en la inicialización del semáforo de procesos.\n");
+	{
+		perror("Error en la inicialización del semáforo de procesos 1.\n");
 		kill(getpid(),SIGTERM);		
-    }
+	}
 
-	datos.memid=shmget(IPC_PRIVATE, 512, IPC_CREAT|0600);
+	for(i=2;i<6;i++){
+		if(semctl(datos.semid,i,SETVAL,1) == -1)
+		{
+			fprintf(stderr,"Error en la inicialización del semáforo de procesos %d.\n",i);
+			kill(getpid(),SIGTERM);		
+		}
+	}
+
+	datos.memid=shmget(IPC_PRIVATE, 512, IPC_CREAT|0600); //La biblioteca usa 256 bytes 
 	if(datos.memid==-1){
 		perror("Error al crear la zona de memoria compartida.\n");
 		kill(getpid(),SIGTERM);							//Llamar manejadora
@@ -337,6 +314,8 @@ int main (int argc, char *argv[]){
 		perror("Error asociando zona de memoria compartida.\n");
 		kill(getpid(),SIGTERM);							//Llamamos a la manejadora
 	}
+
+	datos.myZona=(int *)zona+sizeof(char)*256;
 
 	datos.buzon = msgget(IPC_PRIVATE, IPC_CREAT | 0600);
 	if(datos.buzon==-1)
@@ -381,6 +360,7 @@ int main (int argc, char *argv[]){
 				//Proceso peaton
 
 				pos1=CRUCE_inicio_peatOn_ext(&pos2);
+
 				fprintf(stderr, "Soy el peaton con PID %d. pos1.x=%d, pos1.y=%d pos2.x=%d pos2.y=%d\n", getpid(),
 					pos1.x,pos1.y,pos2.x,pos2.y);
 
@@ -392,18 +372,12 @@ int main (int argc, char *argv[]){
 						fprintf(stderr, "Soy el peaton con PID %d.Entro en el if Flag P2\n", getpid());
 
 						if((pos3.x>=21) && (pos3.x<=27)){
+							ESPERA(sops,SEM_IPC_P2,datos.semid); //Resta uno al semáforo
 							fprintf(stderr, "Soy el peaton con PID %d.Entro en el if MSGRCV P2\n", getpid());
-							
-							msg.tipo=SEM_P2+10;
-							if(msgsnd(datos.buzon,&msg,sizeof(message)-sizeof(long),0)==-1){
-								perror("Error al enviar el mensaje en el Gestor Semaforico");
-								kill(getpid(),SIGTERM);
-							}
-
-							msgrcv(datos.buzon,&msg,sizeof(message)-sizeof(long),SEM_P2,0); //Problema porque type no es long(?)
-							//Esperar mensaje de gestor semaforico
+							//Vendría semanaforo 5
 							flag=1;
 							fprintf(stderr, "Soy el peaton con PID %d.Pongo flag a 1\n", getpid());
+							SENHAL(sops,SEM_IPC_P2,datos.semid); //Resta uno al semáforo
 						}
 						
 					}
@@ -414,19 +388,13 @@ int main (int argc, char *argv[]){
 
 
 						if((pos3.y>=13) && (pos3.y<=15)){
+							ESPERA(sops,SEM_IPC_P1,datos.semid); //Resta uno al semáforo
 							fprintf(stderr, "Soy el peaton con PID %d.Entro en el if MSGRCV P1\n", getpid());
 
-
-							msg.tipo=SEM_P1+10;
-							if(msgsnd(datos.buzon,&msg,sizeof(message)-sizeof(long),0)==-1){
-								perror("Error al enviar el mensaje en el Gestor Semaforico");
-								kill(getpid(),SIGTERM);
-							}
-
-							msgrcv(datos.buzon,&msg,sizeof(message)-sizeof(long),SEM_P1,0);
-							//Esperar mensaje de gestor semaforico	
+							//Vendría semanaforo 4
 							flag=1;
 							fprintf(stderr, "Soy el peaton con PID %d.Pongo flag a 1\n", getpid());
+							SENHAL(sops,SEM_IPC_P1,datos.semid); //Resta uno al semáforo
 						}
 								
 					}
@@ -445,11 +413,7 @@ int main (int argc, char *argv[]){
 
 				CRUCE_fin_peatOn();
 				kill(getpid(), SIGKILL);
-				//SENHAL(sops,1,datos.semid); //Suma uno al semaforo
 			}
-
-			//SENHAL(sops,1,datos.semid);
-	
 
 		} else {
 			//Creamos un nuevo proceso para que gestione el coche
@@ -472,39 +436,22 @@ int main (int argc, char *argv[]){
 					pos1.x,pos1.y,pos3.x,pos3.y);
 
 					if((pos3.x==13) && (flag==0)){
-
+						ESPERA(sops,SEM_IPC_C2,datos.semid); //Resta uno al semáforo
 						fprintf(stderr, "Soy el coche con PID %d.Entro en el if Flag C2\n", getpid());
 							
-						msg.tipo=SEM_C2+10;
-						if(msgsnd(datos.buzon,&msg,sizeof(message)-sizeof(long),0)==-1){
-							perror("Error al enviar el mensaje en el Gestor Semaforico");
-							kill(getpid(),SIGTERM);
-						}
-
-						if(msgrcv(datos.buzon,&msg,sizeof(message)-sizeof(long),SEM_C2,0)==-1){
-							perror("Error al recibir el mensaje en el semaforo C2.\n");
-						}; //Problema porque type no es long(?)
-						//Esperar mensaje de gestor semaforico
+						//Vendría semanaforo 5
 						flag=1;
 						fprintf(stderr, "Soy el coche con PID %d.Pongo flag a 1\n", getpid());
+						SENHAL(sops,SEM_IPC_C2,datos.semid); //Resta uno al semáforo
 					}
 					
 					if((pos3.y==6) && (flag==0)){
-
+						ESPERA(sops,SEM_IPC_C1,datos.semid); //Resta uno al semáforo
 						fprintf(stderr, "Soy el coche con PID %d.Entro en el if Flag C1\n", getpid());
 
-						msg.tipo=SEM_C1+4+10;
-						if(msgsnd(datos.buzon,&msg,sizeof(message)-sizeof(long),0)==-1){
-							perror("Error al enviar el mensaje en el Gestor Semaforico");
-							kill(getpid(),SIGTERM);
-						}
-
-						if(msgrcv(datos.buzon,&msg,sizeof(message)-sizeof(long),SEM_C1+4,0)==-1){
-							perror("Error al recibir el mensaje en el semaforo C1.\n");
-						}
-						//Esperar mensaje de gestor semaforico	
 						flag=1;
-						fprintf(stderr, "Soy el coche con PID %d.Pongo flag a 1\n", getpid());	
+						fprintf(stderr, "Soy el coche con PID %d.Pongo flag a 1\n", getpid());
+						SENHAL(sops,SEM_IPC_C1,datos.semid); //Resta uno al semáforo
 					}
 
 					if(j==0){
