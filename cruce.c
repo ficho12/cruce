@@ -86,7 +86,7 @@ int cambiarColorSem()
 			do{
 				msgReturn = msgrcv(datos.buzon,&msg,sizeof(message)-sizeof(long),SEM_C1+10,IPC_NOWAIT);
 				
-				fprintf(stderr,"msgReturn es %d\n",msgReturn);
+				fprintf(stderr,"msgReturn C1 es %d\n",msgReturn);
 				
 				if(msgReturn != -1){
 					msg.tipo=SEM_C1;
@@ -94,6 +94,7 @@ int cambiarColorSem()
 						perror("Error al enviar el mensaje en el Gestor Semaforico");
 						kill(getpid(),SIGTERM);
 					}
+					fprintf(stderr,"Envío el mensaje C1 desde Gestor Semaforico y msgReturn es: %d\n",msgReturn);
 				}
 			}while(msgReturn != -1);
 			
@@ -102,7 +103,7 @@ int cambiarColorSem()
 			do{
 				msgReturn = msgrcv(datos.buzon,&msg,sizeof(message)-sizeof(long),SEM_P2+10,IPC_NOWAIT);
 				
-				fprintf(stderr,"msgReturn es %d\n",msgReturn);
+				fprintf(stderr,"msgReturn P2 es %d\n",msgReturn);
 				
 				if(msgReturn != -1){
 					msg.tipo=SEM_P2;
@@ -129,7 +130,7 @@ int cambiarColorSem()
 			do{
 				msgReturn = msgrcv(datos.buzon,&msg,sizeof(message)-sizeof(long),SEM_C2+10,IPC_NOWAIT);
 				
-				fprintf(stderr,"msgReturn es %d\n",msgReturn);
+				fprintf(stderr,"msgReturn C2 es %d\n",msgReturn);
 				
 				if(msgReturn != -1){
 					msg.tipo=SEM_C2;
@@ -155,6 +156,7 @@ int cambiarColorSem()
 			do{
 				msgReturn = msgrcv(datos.buzon,&msg,sizeof(message)-sizeof(long),SEM_P1+10,IPC_NOWAIT);
 				
+				fprintf(stderr,"msgReturn P1 es %d\n",msgReturn);
 				
 				if(msgReturn != -1){
 					msg.tipo=SEM_P1;
@@ -472,7 +474,7 @@ int main (int argc, char *argv[]){
 
 					if((pos3.x==13) && (flag==0)){
 
-						fprintf(stderr, "Soy el coche con PID %d.Entro en el if Flag P2\n", getpid());
+						fprintf(stderr, "Soy el coche con PID %d.Entro en el if Flag C2\n", getpid());
 							
 						msg.tipo=SEM_C2+10;
 						if(msgsnd(datos.buzon,&msg,sizeof(message)-sizeof(long),0)==-1){
@@ -480,15 +482,17 @@ int main (int argc, char *argv[]){
 							kill(getpid(),SIGTERM);
 						}
 
-						msgrcv(datos.buzon,&msg,sizeof(message)-sizeof(long),SEM_C2,0); //Problema porque type no es long(?)
+						if(msgrcv(datos.buzon,&msg,sizeof(message)-sizeof(long),SEM_C2,0)==-1){
+							perror("Error al recibir el mensaje en el semaforo C2.\n");
+						}; //Problema porque type no es long(?)
 						//Esperar mensaje de gestor semaforico
 						flag=1;
 						fprintf(stderr, "Soy el coche con PID %d.Pongo flag a 1\n", getpid());
 					}
 					
-					if((pos3.y==2) && (flag==0)){
+					if((pos3.y==5) && (flag==0)){
 
-						fprintf(stderr, "Soy el coche con PID %d.Entro en el if Flag P1\n", getpid());
+						fprintf(stderr, "Soy el coche con PID %d.Entro en el if Flag C1\n", getpid());
 
 						msg.tipo=SEM_C1+10;
 						if(msgsnd(datos.buzon,&msg,sizeof(message)-sizeof(long),0)==-1){
@@ -496,7 +500,9 @@ int main (int argc, char *argv[]){
 							kill(getpid(),SIGTERM);
 						}
 
-						msgrcv(datos.buzon,&msg,sizeof(message)-sizeof(long),SEM_C1,0);
+						if(msgrcv(datos.buzon,&msg,sizeof(message)-sizeof(long),SEM_C1,0)==-1){
+							perror("Error al recibir el mensaje en el semaforo C1.\n");
+						}
 						//Esperar mensaje de gestor semaforico	
 						flag=1;
 						fprintf(stderr, "Soy el coche con PID %d.Pongo flag a 1\n", getpid());	
