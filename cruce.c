@@ -67,10 +67,12 @@ void ambar(){
 	CRUCE_pon_semAforo(SEM_C1 ,AMARILLO);
 	pausa();
 	pausa();
+	pausa();
 	}
 
 	if(datos.fase ==3){ 
 	CRUCE_pon_semAforo(SEM_C2,AMARILLO);
+	pausa();
 	pausa();
 	pausa();
 	}
@@ -163,6 +165,15 @@ int verify(char * string)
     return 0;
 }
 
+/*
+unsigned concatenar(unsigned x, unsigned y) {
+    unsigned pow = 10;
+    while(y >= pow)
+        pow *= 10;
+    return x * pow + y;        
+}*/
+
+
 //Manejadora para la señal SIGINT
 
 void terminar (int sig) {
@@ -234,12 +245,12 @@ int main (int argc, char *argv[]){
 	char * zona;
 	int tipoProceso;
 	datos.argumentos = argc;
-	struct posiciOn pos1, pos2, pos3;
+	struct posiciOn pos1, pos2, pos3,posAnt;
 	struct sembuf sops;
 	struct mensaje msg;
 	datos.fase=0;
-	int i=0,j=0,h=0;
-
+	int i=0,j=0,h=6;
+	int posRes[50][16];
 	//Comprobamos que los parametros introducidos son los correctos
 	/*
 	if((datos.argumentos != 3)){
@@ -280,14 +291,11 @@ int main (int argc, char *argv[]){
 	}
 	
 	//Creamos los semaforos y la memoria
-	datos.semid=semget(IPC_PRIVATE, 6, IPC_CREAT|0600);
+	datos.semid=semget(IPC_PRIVATE, 858, IPC_CREAT|0600);
 	if(datos.semid==-1){
 		perror("Error al crear los semaforos.\n");
 		kill(getpid(),SIGTERM);							//Llamar manejadora
 	}
-	//Primer semáforo para la biblioteca
-	//Segundo semáforo para el gestor semafórico
-	//Tercer semáforo C1, Cuarto C2, Quinto P1, Sexto P2
 	
 	if(semctl(datos.semid,1,SETVAL,numProc) == -1)
 	{
@@ -303,7 +311,19 @@ int main (int argc, char *argv[]){
 		}
 	}
 
-	datos.memid=shmget(IPC_PRIVATE, 512, IPC_CREAT|0600); //La biblioteca usa 256 bytes 
+	for(i=1;i<51;i++){
+		for(j=0;j<=16;j++){
+			if(semctl(datos.semid,h,SETVAL,1) == -1)
+			{
+				fprintf(stderr,"Error en la inicialización del semáforo de procesos %d.\n",h);
+				kill(getpid(),SIGTERM);		
+			}
+			posRes[i][j] = h++;
+		}
+	}
+	h=0;
+
+	datos.memid=shmget(IPC_PRIVATE, 256, IPC_CREAT|0600); //La biblioteca usa 256 bytes 
 	if(datos.memid==-1){
 		perror("Error al crear la zona de memoria compartida.\n");
 		kill(getpid(),SIGTERM);							//Llamar manejadora
@@ -360,12 +380,18 @@ int main (int argc, char *argv[]){
 				//Proceso peaton
 
 				pos1=CRUCE_inicio_peatOn_ext(&pos2);
-
+				posAnt=pos1;
 				fprintf(stderr, "Soy el peaton con PID %d. pos1.x=%d, pos1.y=%d pos2.x=%d pos2.y=%d\n", getpid(),
 					pos1.x,pos1.y,pos2.x,pos2.y);
 
 				do{ 
+					
+					ESPERA(sops,posRes[pos1.x][pos1.y],datos.semid); //Resta uno al semáforo
+					
 					pos3=CRUCE_avanzar_peatOn(pos1);
+					SENHAL(sops,posRes[posAnt.x][posAnt.y],datos.semid); //Suma uno al semáforo	
+					posAnt=pos1;
+					//ESPERA(sops,posRes[pos3.x][pos3.y],datos.semid); //Resta uno al semáforo
 					
 					if((pos3.y==11) && (flag==0)){
 
@@ -377,7 +403,7 @@ int main (int argc, char *argv[]){
 							//Vendría semanaforo 5
 							flag=1;
 							fprintf(stderr, "Soy el peaton con PID %d.Pongo flag a 1\n", getpid());
-							SENHAL(sops,SEM_IPC_P2,datos.semid); //Resta uno al semáforo
+							SENHAL(sops,SEM_IPC_P2,datos.semid); //Suma uno al semáforo
 						}
 						
 					}
@@ -388,13 +414,13 @@ int main (int argc, char *argv[]){
 
 
 						if((pos3.y>=13) && (pos3.y<=15)){
-							ESPERA(sops,SEM_IPC_P1,datos.semid); //Resta uno al semáforo
+							ESPERA(sops,SEM_IPC_P1,datos.semid); 
 							fprintf(stderr, "Soy el peaton con PID %d.Entro en el if MSGRCV P1\n", getpid());
 
 							//Vendría semanaforo 4
 							flag=1;
 							fprintf(stderr, "Soy el peaton con PID %d.Pongo flag a 1\n", getpid());
-							SENHAL(sops,SEM_IPC_P1,datos.semid); //Resta uno al semáforo
+							SENHAL(sops,SEM_IPC_P1,datos.semid);
 						}
 								
 					}
@@ -407,7 +433,7 @@ int main (int argc, char *argv[]){
 						h++;
 					}else
 						h--;
-				
+
 					pos1=pos3;
 				}while((pos3.y>=0) || (pos3.x>=51));
 
