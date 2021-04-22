@@ -241,7 +241,7 @@ void terminar (int sig) {
 
 
 int main (int argc, char *argv[]){
-	int numProc, velocidad, buzon, flag=0;
+	int numProc, velocidad, buzon, flag=0, msgReturn, msgReturnLib;
 	char * zona;
 	int tipoProceso;
 	datos.argumentos = argc;
@@ -250,7 +250,10 @@ int main (int argc, char *argv[]){
 	struct mensaje msg;
 	datos.fase=0;
 	int i=0,j=0,h=6;
-	int posRes[50][16];
+	int msgTipoRes[50][17];
+	int msgTipoLib[50][17];
+	int msgTipo3[50][17];
+
 	//Comprobamos que los parametros introducidos son los correctos
 	/*
 	if((datos.argumentos != 3)){
@@ -274,8 +277,10 @@ int main (int argc, char *argv[]){
 	if(!verify(argv[2]))
 		numProc = atoi(argv[2]);
 
+	//fprintf(stderr,"Numproc es %d\n",numProc);
+
 	if(numProc < 2 && numProc > 128 ){
-		printf("Error, el numero de procesos tiene que ser mayor o igual que dos.\n\n");
+		printf("Error, el numero de procesos tiene que ser mayor que 2 y menor a 128.\n\n");
 		ayuda();
 		return 2;
 	}
@@ -291,13 +296,13 @@ int main (int argc, char *argv[]){
 	}
 	
 	//Creamos los semaforos y la memoria
-	datos.semid=semget(IPC_PRIVATE, 858, IPC_CREAT|0600);
+	datos.semid=semget(IPC_PRIVATE, 6, IPC_CREAT|0600);
 	if(datos.semid==-1){
 		perror("Error al crear los semaforos.\n");
 		kill(getpid(),SIGTERM);							//Llamar manejadora
 	}
 	
-	if(semctl(datos.semid,1,SETVAL,numProc) == -1)
+	if(semctl(datos.semid,1,SETVAL,numProc-2) == -1)
 	{
 		perror("Error en la inicialización del semáforo de procesos 1.\n");
 		kill(getpid(),SIGTERM);		
@@ -313,17 +318,15 @@ int main (int argc, char *argv[]){
 
 	for(i=1;i<51;i++){
 		for(j=0;j<=16;j++){
-			if(semctl(datos.semid,h,SETVAL,1) == -1)
-			{
-				fprintf(stderr,"Error en la inicialización del semáforo de procesos %d.\n",h);
-				kill(getpid(),SIGTERM);		
-			}
-			posRes[i][j] = h++;
+			msgTipoRes[i][j] = h;
+			msgTipoLib[i][j] = h+1;
+			msgTipo3[i][j] = h+2;
+			h = h+3;
 		}
 	}
 	h=0;
 
-	datos.memid=shmget(IPC_PRIVATE, 256, IPC_CREAT|0600); //La biblioteca usa 256 bytes 
+	datos.memid=shmget(IPC_PRIVATE, 512, IPC_CREAT|0600); //La biblioteca usa 256 bytes 
 	if(datos.memid==-1){
 		perror("Error al crear la zona de memoria compartida.\n");
 		kill(getpid(),SIGTERM);							//Llamar manejadora
@@ -334,8 +337,6 @@ int main (int argc, char *argv[]){
 		perror("Error asociando zona de memoria compartida.\n");
 		kill(getpid(),SIGTERM);							//Llamamos a la manejadora
 	}
-
-	datos.myZona=(int *)zona+sizeof(char)*256;
 
 	datos.buzon = msgget(IPC_PRIVATE, IPC_CREAT | 0600);
 	if(datos.buzon==-1)
@@ -360,12 +361,12 @@ int main (int argc, char *argv[]){
 			break;
 	}
 	
-	for(;;){ 
+	for(;;){
 		ESPERA(sops,1,datos.semid);
-		
 		tipoProceso=CRUCE_nuevo_proceso();
 		fprintf(stderr,"Soy el padre con PID %d con tipoProceso %d\n",getpid(),tipoProceso);
 		//Creamos un peaton y lo movemos para ver las posiciones por las que pasa
+
 
 		if(tipoProceso==PEAToN){
 			//Creamos un nuevo proceso para que gestione el peaton			
@@ -376,22 +377,90 @@ int main (int argc, char *argv[]){
 				kill(getpid(),SIGTERM);							//Llamamos a la manejadora
 			case 0:
 				//Proceso peaton
-
+				
 				pos1=CRUCE_inicio_peatOn_ext(&pos2);
+									
 				posAnt=pos1;
+
 				fprintf(stderr, "Soy el peaton con PID %d. pos1.x=%d, pos1.y=%d pos2.x=%d pos2.y=%d\n", getpid(),
 					pos1.x,pos1.y,pos2.x,pos2.y);
+				//msg.tipo=msgTipo[pos1.x][pos1.y];
+				//ESPERA(sops,posRes[pos1.x][pos1.y],datos.semid); //Resta uno al semáforo
+				/*msgReturn = msgrcv(datos.buzon,&msg,sizeof(msg)-sizeof(long),msgTipo[pos1.x][pos1.y],IPC_NOWAIT);
 
-				ESPERA(sops,posRes[pos1.x][pos1.y],datos.semid); //Resta uno al semáforo
+				fprintf(stderr,"msgReturn es %d y errno es %d\n",msgReturn,errno);
+
+				if(msgReturn != -1){
+					msgrcv(datos.buzon,&msg,sizeof(msg)-sizeof(long),msgTipo[pos1.x][pos1.y],0);
+				}*/
+
+				//msgrcv(datos.buzon,&msg,sizeof(msg)-sizeof(long),msgTipo[pos1.x][pos1.y],IPC_NO_WAIT);
 
 				do{ 
+					//msg.tipo=0;
+					msgReturn = msgrcv(datos.buzon,&msg,sizeof(msg)-sizeof(long),msgTipoRes[pos1.x][pos1.y],IPC_NOWAIT);
+
+					fprintf(stderr,"msgReturn es %d y errno es %d\n",msgReturn,errno);
+
+					if(msgReturn == -1){
+
+						msg.tipo=msgTipoRes[pos1.x][pos1.y];
+						if(msgsnd(datos.buzon,&msg,sizeof(msg)-sizeof(long),0)==-1){
+							fprintf(stderr,"Peaton %d No reservo la posicion %d\n",getpid(),msgTipoLib[pos1.x][pos1.y]);
+						}
+						fprintf(stderr,"Soy el Peaton %d y entro en el primer if %d\n",getpid(),errno);
+
+					}else{
+
+						msgReturnLib = msgrcv(datos.buzon,&msg,sizeof(msg)-sizeof(long),msgTipoLib[pos1.x][pos1.y],IPC_NOWAIT);
+						if(msgReturnLib == -1){
+							msgrcv(datos.buzon,&msg,sizeof(msg)-sizeof(long),msgTipoLib[pos1.x][pos1.y],0);
+						}else{
+							msg.tipo=msgTipoRes[pos1.x][pos1.y];
+							if(msgsnd(datos.buzon,&msg,sizeof(msg)-sizeof(long),0)==-1){
+								fprintf(stderr,"Peaton %d No reservo la posicion %d\n",getpid(),msgTipoRes[pos1.x][pos1.y]);
+							}
+						}				
+					}/*else{
+						msg.tipo=msgTipoRes[pos1.x][pos1.y];
+						if(msgsnd(datos.buzon,&msg,sizeof(msg)-sizeof(long),0)==-1){
+							fprintf(stderr,"Peaton %d No libero la posicion %d\n",getpid(),msgTipoLib[pos1.x][pos1.y]);
+						}
+						fprintf(stderr,"Soy el Peaton %d y entro en el segundo else if %d\n",getpid(),errno);
+					}
+
+					/*if(msgReturn == 128)
+						msgrcv(datos.buzon,&msg,sizeof(msg)-sizeof(long),msgTipo[pos1.x][pos1.y],0);
+					else{
+						msg.tipo=msgTipo[pos1.x][pos1.y];
+						msgsnd(datos.buzon,&msg,sizeof(msg)-sizeof(long),0);
+					}*/
+						
 					
-					
+
 					pos3=CRUCE_avanzar_peatOn(pos1);
-					SENHAL(sops,posRes[posAnt.x][posAnt.y],datos.semid); //Suma uno al semáforo
-					ESPERA(sops,posRes[pos3.x][pos3.y],datos.semid); //Resta uno al semáforo	
+					
+					msg.tipo=msgTipoLib[posAnt.x][posAnt.y];
+					if(msgsnd(datos.buzon,&msg,sizeof(msg)-sizeof(long),0)==-1){
+						fprintf(stderr,"Peaton %d No libero la posicion %d\n",getpid(),msgTipoLib[posAnt.x][posAnt.y]);
+					}
+					
+
 					posAnt=pos1;
+					
+					//SENHAL(sops,posRes[posAnt.x][posAnt.y],datos.semid); //Suma uno al semáforo
 					//ESPERA(sops,posRes[pos3.x][pos3.y],datos.semid); //Resta uno al semáforo
+					/*if(!(pos3.y>-1 || pos3.x>-1));
+					else{
+						msgReturn = msgrcv(datos.buzon,&msg,sizeof(msg)-sizeof(long),msgTipo[pos3.x][pos3.y],IPC_NOWAIT);
+
+						fprintf(stderr,"msgReturn es %d y errno es %d\n",msgReturn,errno);
+
+						if(msgReturn != -1){
+							msgrcv(datos.buzon,&msg,sizeof(msg)-sizeof(long),msgTipo[pos3.x][pos3.y],0);
+						}
+					}*/
+				
 
 					if((pos3.y==11) && (flag==0)){
 
@@ -435,13 +504,17 @@ int main (int argc, char *argv[]){
 
 					pos1=pos3;
 				
-				}while(pos1.y!=-1 || pos1.x!=-1);
-				perror("Hola peaton.\n");
-				SENHAL(sops,posRes[pos1.x][pos1.y],datos.semid); //Suma uno al semáforo
-				
+				}while(pos3.y>-1 || pos3.x>-1);
+				fprintf(stderr,"Hola peaton. Errno es %d\n",errno);
+				//SENHAL(sops,posRes[pos1.x][pos1.y],datos.semid); //Suma uno al semáforo
+
+				//msg.tipo=msgTipo[pos1.x][pos1.y];
+				//msgsnd(datos.buzon,&msg,sizeof(msg)-sizeof(long),0);
+				SENHAL(sops,1,datos.semid); //Suma uno al semaforo
+
 				CRUCE_fin_peatOn();
-				//SENHAL(sops,1,datos.semid); //Suma uno al semaforo
-				return 0;
+				kill(getpid(),SIGKILL);
+				//return 0;
 			}
 
 		} else {
@@ -491,18 +564,15 @@ int main (int argc, char *argv[]){
 					pos1=pos3;
 
 				}while(pos3.y!=-2);
-				
+				fprintf(stderr,"Hola coche.\n");
 				CRUCE_fin_coche();
-				//return 0;
-				//SENHAL(sops,1,datos.semid); //Suma uno al semaforo
-				return 0;	
+				SENHAL(sops,1,datos.semid); //Suma uno al semaforo
+				kill(getpid(),SIGKILL);
+				//return 0;	
 			}
 		}
 
-		SENHAL(sops,1,datos.semid); //Suma uno al semaforo
-	/*} else {
-		perror("Numero de procesos sobrepasados\n");
-	}*/
+		//SENHAL(sops,1,datos.semid); //Suma uno al semaforo
 	}
 	return 0;
 }
