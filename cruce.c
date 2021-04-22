@@ -274,7 +274,7 @@ int main (int argc, char *argv[]){
 	if(!verify(argv[2]))
 		numProc = atoi(argv[2]);
 
-	if(numProc < 2){
+	if(numProc < 2 && numProc > 128 ){
 		printf("Error, el numero de procesos tiene que ser mayor o igual que dos.\n\n");
 		ayuda();
 		return 2;
@@ -362,15 +362,13 @@ int main (int argc, char *argv[]){
 	
 	for(;;){ 
 		ESPERA(sops,1,datos.semid);
-
+		
 		tipoProceso=CRUCE_nuevo_proceso();
 		fprintf(stderr,"Soy el padre con PID %d con tipoProceso %d\n",getpid(),tipoProceso);
 		//Creamos un peaton y lo movemos para ver las posiciones por las que pasa
 
 		if(tipoProceso==PEAToN){
-			//Creamos un nuevo proceso para que gestione el peaton
-			//ESPERA(sops,1,datos.semid);
-			
+			//Creamos un nuevo proceso para que gestione el peaton			
 			switch (fork())
 			{
 			case -1:
@@ -384,15 +382,17 @@ int main (int argc, char *argv[]){
 				fprintf(stderr, "Soy el peaton con PID %d. pos1.x=%d, pos1.y=%d pos2.x=%d pos2.y=%d\n", getpid(),
 					pos1.x,pos1.y,pos2.x,pos2.y);
 
+				ESPERA(sops,posRes[pos1.x][pos1.y],datos.semid); //Resta uno al semáforo
+
 				do{ 
 					
-					ESPERA(sops,posRes[pos1.x][pos1.y],datos.semid); //Resta uno al semáforo
 					
 					pos3=CRUCE_avanzar_peatOn(pos1);
-					SENHAL(sops,posRes[posAnt.x][posAnt.y],datos.semid); //Suma uno al semáforo	
+					SENHAL(sops,posRes[posAnt.x][posAnt.y],datos.semid); //Suma uno al semáforo
+					ESPERA(sops,posRes[pos3.x][pos3.y],datos.semid); //Resta uno al semáforo	
 					posAnt=pos1;
 					//ESPERA(sops,posRes[pos3.x][pos3.y],datos.semid); //Resta uno al semáforo
-					
+
 					if((pos3.y==11) && (flag==0)){
 
 						fprintf(stderr, "Soy el peaton con PID %d.Entro en el if Flag P2\n", getpid());
@@ -400,7 +400,7 @@ int main (int argc, char *argv[]){
 						if((pos3.x>=21) && (pos3.x<=27)){
 							ESPERA(sops,SEM_IPC_P2,datos.semid); //Resta uno al semáforo
 							fprintf(stderr, "Soy el peaton con PID %d.Entro en el if MSGRCV P2\n", getpid());
-							//Vendría semanaforo 5
+		
 							flag=1;
 							fprintf(stderr, "Soy el peaton con PID %d.Pongo flag a 1\n", getpid());
 							SENHAL(sops,SEM_IPC_P2,datos.semid); //Suma uno al semáforo
@@ -417,7 +417,6 @@ int main (int argc, char *argv[]){
 							ESPERA(sops,SEM_IPC_P1,datos.semid); 
 							fprintf(stderr, "Soy el peaton con PID %d.Entro en el if MSGRCV P1\n", getpid());
 
-							//Vendría semanaforo 4
 							flag=1;
 							fprintf(stderr, "Soy el peaton con PID %d.Pongo flag a 1\n", getpid());
 							SENHAL(sops,SEM_IPC_P1,datos.semid);
@@ -435,15 +434,19 @@ int main (int argc, char *argv[]){
 						h--;
 
 					pos1=pos3;
-				}while((pos3.y>=0) || (pos3.x>=51));
-
+				
+				}while(pos1.y!=-1 || pos1.x!=-1);
+				perror("Hola peaton.\n");
+				SENHAL(sops,posRes[pos1.x][pos1.y],datos.semid); //Suma uno al semáforo
+				
 				CRUCE_fin_peatOn();
-				kill(getpid(), SIGKILL);
+				//SENHAL(sops,1,datos.semid); //Suma uno al semaforo
+				return 0;
 			}
 
 		} else {
 			//Creamos un nuevo proceso para que gestione el coche
-
+			//ESPERA(sops,1,datos.semid);
 			switch (fork())
 			{
 			case -1:
@@ -490,13 +493,16 @@ int main (int argc, char *argv[]){
 				}while(pos3.y!=-2);
 				
 				CRUCE_fin_coche();
-				kill(getpid(), SIGKILL);
+				//return 0;
 				//SENHAL(sops,1,datos.semid); //Suma uno al semaforo
-				//return 0;	
+				return 0;	
 			}
 		}
-		//pause();
+
 		SENHAL(sops,1,datos.semid); //Suma uno al semaforo
+	/*} else {
+		perror("Numero de procesos sobrepasados\n");
+	}*/
 	}
 	return 0;
 }
