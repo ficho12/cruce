@@ -364,7 +364,7 @@ int main (int argc, char *argv[]){
 	}
 
 	for(i=0;i<54;i++){
-		for(j=0;j<17;j++){
+		for(j=0;j<21;j++){
 			//msgTipoRes[i][j] = h;
 			msgTipoLib[i][j] = h+1;
 			//msgTipo3[i][j] = h+2;
