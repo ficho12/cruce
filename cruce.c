@@ -203,6 +203,25 @@ void terminar (int sig) {
 	if(datos.pidDelPadre != self){ 
 		_exit(0);
 	}
+	//-->La espera por la muerte de los hijos debe ser anterior a la eliminación de los recursos.	
+	for(i=0; i< datos.procesos-1; ++i){
+
+		int status;
+		for(;;){
+			pid_t hijo = wait(&status);
+			if(hijo > 0 && WIFEXITED(status) && WEXITSTATUS(status) == 0){
+			} else if (hijo < 0 && errno == EINTR){
+				continue;
+			} else {
+//-->Este error terminará saliendo. Cuando un proceso ha "purgado" todos sus hijos
+// con las llamadas a wait y vuelve a hacer un wait, da error porque no tiene más.			
+				perror("wait");
+				abort();
+			}
+			break;
+		}
+	}	
+	CRUCE_fin();
 	
 	//Eliminamos los semaforos
 	if(datos.semid != -1){ 
@@ -237,25 +256,8 @@ void terminar (int sig) {
 	}else {
 			perror("Buzon no eliminado.\n");
 	}
-	
-	for(i=0; i< datos.procesos-1; ++i){
+	printf("Programa acabado correctamente.\n"); //Quitarlo antes de entregar	
 
-		int status;
-		for(;;){
-			pid_t hijo = wait(&status);
-			if(hijo > 0 && WIFEXITED(status) && WEXITSTATUS(status) == 0){
-			} else if (hijo < 0 && errno == EINTR){
-				continue;
-			} else {
-				perror("wait");
-				abort();
-			}
-			break;
-		}
-	}
-
-	printf("Programa acabado correctamente.\n"); //Quitarlo antes de entregar
-	CRUCE_fin();
 	exit(0);
 }
 
@@ -269,9 +271,9 @@ int main (int argc, char *argv[]){
 	struct sembuf sops;
 	struct mensaje msg;
 	datos.fase=0;
-	int i=0,j=0,h=6;
+	int i=0,j=0,h=1;
 	int msgTipoRes[50][17];
-	int msgTipoLib[50][17];
+	int msgTipoLib[55][22];
 	int msgTipo3[50][17];
 
 	//Comprobamos que los parametros introducidos son los correctos
@@ -363,13 +365,18 @@ int main (int argc, char *argv[]){
 		kill(getpid(),SIGTERM);							//Llamar manejadora
 	}
 
-	for(i=0;i<54;i++){
+	for(i=0;i<55;i++){
 		for(j=0;j<21;j++){
 			//msgTipoRes[i][j] = h;
-			msgTipoLib[i][j] = h+1;
+			msgTipoLib[i][j] = h;
 			//msgTipo3[i][j] = h+2;
 			msg.tipo=msgTipoLib[i][j];
-			strcpy(msg.texto,"1");
+//-->El dato texto no lo quieres para nada. No tienes por qué rellenarlo. Pero, si lo rellenas,
+// lo tienes que rellenar bien. Al copiar el 1 como cadena, estás escribiendo "1\0", que son
+// dos carácteres pero tu array texto solo tiene tamaño 1. Esto te fallará en encina por
+// salirte del array.
+
+			//strcpy(msg.texto,"1");
 			if(msgsnd(datos.buzon,&msg,sizeof(struct mensaje)- sizeof (long),0)==-1){
 				fprintf(stderr,"No se manda un mensaje liberar a la posiocion %d %d\n",i,j);
 			}
@@ -377,7 +384,7 @@ int main (int argc, char *argv[]){
 		}
 	}
 	h=0;
-		
+	j=0;	
 	if(CRUCE_inicio(velocidad, numProc, datos.semid, zona)==-1){
 		perror("Error al llamar a CRUCE_inicio.\n");
 		kill(getpid(),SIGTERM);							//Llamamos a la manejadora
@@ -402,7 +409,7 @@ int main (int argc, char *argv[]){
 			cambiarColorSem();						//Gestor Semafórico
 			break;
 	}
-	
+int a=0;	
 	for(;;){
 		ESPERA(sops,1,datos.semid);
 		//tipoProceso=CRUCE_nuevo_proceso();
@@ -441,7 +448,7 @@ int main (int argc, char *argv[]){
 					pos1.x,pos1.y,pos3.x,pos3.y);
 					
 					msg.tipo=msgTipoLib[posAnt.x][posAnt.y];
-					strcpy(msg.texto,"1");
+					//strcpy(msg.texto,"1");
 					if(msgsnd(datos.buzon,&msg,sizeof(struct mensaje)- sizeof (long),0)==-1){
 						fprintf(stderr,"Peaton %d NO LIBERO x=%d y=%d Errno: %d\n",getpid(),posAnt.x,posAnt.y,errno);
 					} else { 
@@ -473,7 +480,7 @@ int main (int argc, char *argv[]){
 
 								
 								msg.tipo=msgTipoLib[posAnt.x][posAnt.y];
-								strcpy(msg.texto,"1");
+								//strcpy(msg.texto,"1");
 								if(msgsnd(datos.buzon,&msg,sizeof(struct mensaje)- sizeof (long),0)==-1){
 									fprintf(stderr,"Peaton %d NO LIBERO x=%d y=%d Errno: %d\n",getpid(),posAnt.x,posAnt.y,errno);
 								} else { 
@@ -521,7 +528,7 @@ int main (int argc, char *argv[]){
 
 
 								msg.tipo=msgTipoLib[posAnt.x][posAnt.y];
-								strcpy(msg.texto,"1");
+								//strcpy(msg.texto,"1");
 								if(msgsnd(datos.buzon,&msg,sizeof(struct mensaje)- sizeof (long),0)==-1){
 									fprintf(stderr,"Peaton %d NO LIBERO x=%d y=%d Errno: %d\n",getpid(),posAnt.x,posAnt.y,errno);
 								} else { 
@@ -558,7 +565,7 @@ int main (int argc, char *argv[]){
 				}while((pos3.y>=0) || (pos3.x>0));
 
 				msg.tipo=msgTipoLib[posAnt.x][posAnt.y];
-				strcpy(msg.texto,"1");
+				//strcpy(msg.texto,"1");
 					if(msgsnd(datos.buzon,&msg,sizeof(struct mensaje)- sizeof (long),0)==-1){
 						fprintf(stderr,"Peaton %d NO LIBERO x=%d y=%d Errno: %d\n",getpid(),pos1.x,pos1.y,errno);
 					} else { 
@@ -576,6 +583,8 @@ int main (int argc, char *argv[]){
 		} else {
 			//Creamos un nuevo proceso para que gestione el coche
 			//ESPERA(sops,1,datos.semid);
+sleep(1);
+if(a++==2){pause();}
 			switch (fork())
 			{
 			case -1:
@@ -583,7 +592,6 @@ int main (int argc, char *argv[]){
 				kill(getpid(),SIGTERM);							//Llamamos a la manejadora
 			case 0:
 				//Proceso coche
-
 				
 				pos1=CRUCE_inicio_coche();
 
@@ -591,48 +599,26 @@ int main (int argc, char *argv[]){
 					pos1.x,pos1.y);
 
 				posAnt=pos1;
-				
+		
 				if(pos1.y==10)			//C2
 				{
 					do{ 
-
-					if(-1==msgrcv(datos.buzon,&msg,sizeof(struct mensaje)- sizeof (long),msgTipoLib[pos1.x+8+3][pos1.y],0)){
-					fprintf(stderr,"Coche %d ERROR ESPERAR A QUE SE LIBERE x=%d y=%d Errno: %d\n",getpid(),pos1.x,pos1.y,errno);
-					} else {
-						fprintf(stderr,"Coche %d ESPERA BIEN A QUE SE LIBERE x=%d y=%d Errno: %d\n",getpid(),pos1.x,pos1.y,errno);
-					}
-
+					msg.tipo=msgTipoLib[pos1.x+8+4][pos1.y];
+					fprintf(stderr,"Coche %d ESPERO EN 1 POR x=%d y=%d tipoLib %d tipo %ld\n",getpid(),pos1.x,pos1.y,msgTipoLib[pos1.x+8+4][pos1.y],msg.tipo);
+					if(-1==msgrcv(datos.buzon,&msg,sizeof(struct mensaje)- sizeof (long),msgTipoLib[pos1.x+8+4][pos1.y],0)){
+						fprintf(stderr,"Coche %d ERROR ESPERAR A QUE SE LIBERE x=%d y=%d Errno: %d\n",getpid(),pos1.x,pos1.y,errno);
+					} 
+					fprintf(stderr, "Coche %d PASA 1\n", getpid());
 					
-					pos3=CRUCE_avanzar_coche(pos1);
+					pos3=CRUCE_avanzar_coche(pos1); 
 
-					fprintf(stderr, "Soy el coche con PID avanzo %d. x=%d, y=%d x=%d y=%d\n", getpid(),
-					pos1.x,pos1.y,pos3.x,pos3.y);
+					//if(flag2==1){
+						msg.tipo=msgTipoLib[posAnt.x][posAnt.y];
+						fprintf(stderr,"Coche %d LIBERO 1 x=%d y=%d tipo: %ld tipoLib: %d\n",getpid(),posAnt.x,posAnt.y,msg.tipo,msgTipoLib[posAnt.x][posAnt.y]);	
+						if(msgsnd(datos.buzon,&msg,sizeof(struct mensaje)- sizeof (long),0)==-1)
+							fprintf(stderr,"Coche %d NO LIBERO x=%d y=%d tipo: %ld\n",getpid(),posAnt.x,posAnt.y,msg.tipo);
 					
-					if(flag2==1){
-						msg.tipo=msgTipoLib[posAnt.x+3][posAnt.y];
-						strcpy(msg.texto,"1");
-						if(msgsnd(datos.buzon,&msg,sizeof(struct mensaje)- sizeof (long),0)==-1){
-							fprintf(stderr,"Coche %d NO LIBERO x=%d y=%d Errno: %d\n",getpid(),posAnt.x,posAnt.y,errno);
-						} else { 
-							fprintf(stderr,"Coche %d LIBERO x=%d y=%d Errno: %d\n",getpid(),posAnt.x,posAnt.y,errno);	
-						}
-					}else{
-						flag2=1;
-					}
-
 					posAnt=pos1;
-
-					if((pos3.x==13) && (flag==0)){
-						ESPERA(sops,SEM_IPC_C2,datos.semid); //Resta uno al semáforo
-						fprintf(stderr, "Soy el coche con PID %d.Entro en el if Flag C2\n", getpid());
-						//Se reserva la poscion del coche de atras y se comprueba si esta reservada la poscion del coche +2	
-
-
-						flag=1;
-						fprintf(stderr, "Soy el coche con PID %d.Pongo flag a 1\n", getpid());
-						SENHAL(sops,SEM_IPC_C2,datos.semid); //Resta uno al semáforo
-						//SENHAL(sops,7,datos.semid); //Suma uno al semaforo
-					}
 
 					if(j==0){
 						pausa_coche();
@@ -641,6 +627,43 @@ int main (int argc, char *argv[]){
 						j--;
 
 					pos1=pos3;
+
+					if(pos3.x==13){					
+						ESPERA(sops,SEM_IPC_C2,datos.semid); //Resta uno al semáforo
+						//Se reserva la poscion del coche de atras y se comprueba si esta reservada la poscion del coche +2	
+					}else if(pos3.x==27){		
+						SENHAL(sops,SEM_IPC_C2,datos.semid); //Resta uno al semáforo
+					}else if(pos3.x==33){		//Cuando el coche este aqui hay que hacer lo del C1
+						do{ 
+						fprintf(stderr,"Coche %d ESPERO EN 2 POR x=%d y=%d tipo %ld\n",getpid(),pos1.x,pos1.y,msg.tipo);
+
+						if(-1==msgrcv(datos.buzon,&msg,sizeof(struct mensaje)- sizeof (long),msgTipoLib[pos1.x+4][pos1.y+5],0)){
+
+						} 
+						fprintf(stderr, "Coche %d PASA 2\n", getpid());
+						
+						pos3=CRUCE_avanzar_coche(pos1);					
+
+						msg.tipo=msgTipoLib[posAnt.x][posAnt.y];
+						
+						fprintf(stderr,"Coche %d LIBERO 2 x=%d y=%d tipo: %ld\n",getpid(),posAnt.x,posAnt.y,msg.tipo);							
+						if(msgsnd(datos.buzon,&msg,sizeof(struct mensaje)- sizeof (long),0)==-1)
+
+						posAnt=pos1;					
+
+						if(j==0){
+							pausa_coche();
+							j++;
+						}else
+							j--;
+
+						pos1=pos3;
+
+						}while(pos3.y!=-2);
+
+					}
+					
+					//pos1=pos3;
 
 					}while(pos3.y!=-2);
 
@@ -648,27 +671,22 @@ int main (int argc, char *argv[]){
 				
 				if(pos1.x==33){					//C1 con x=33
 					do{ 
+					fprintf(stderr,"Coche %d ESPERO EN 2 POR x=%d y=%d tipo %ld\n",getpid(),pos1.x,pos1.y,msg.tipo);
 
-					if(-1==msgrcv(datos.buzon,&msg,sizeof(struct mensaje)- sizeof (long),msgTipoLib[pos1.x+3][pos1.y+5],0)){
-					fprintf(stderr,"Coche %d ERROR ESPERAR A QUE SE LIBERE x=%d y=%d Errno: %d\n",getpid(),pos1.x,pos1.y,errno);
-					} else {
-						fprintf(stderr,"Coche %d ESPERA BIEN A QUE SE LIBERE x=%d y=%d Errno: %d\n",getpid(),pos1.x,pos1.y,errno);
-					}
+					if(-1==msgrcv(datos.buzon,&msg,sizeof(struct mensaje)- sizeof (long),msgTipoLib[pos1.x+4][pos1.y+5],0)){
 
+					} 
+					fprintf(stderr, "Coche %d PASA 2\n", getpid());
 					
 					pos3=CRUCE_avanzar_coche(pos1);
-
-					fprintf(stderr, "Soy el coche con PID avanzo %d. x=%d, y=%d x=%d y=%d\n", getpid(),
-					pos1.x,pos1.y,pos3.x,pos3.y);
+					pausa_coche();
 
 					if(flag2==1){
-						msg.tipo=msgTipoLib[posAnt.x+3][posAnt.y];
-						strcpy(msg.texto,"1");
+						msg.tipo=msgTipoLib[posAnt.x][posAnt.y];
+						
+						fprintf(stderr,"Coche %d LIBERO 2 x=%d y=%d tipo: %ld\n",getpid(),posAnt.x,posAnt.y,msg.tipo);							
 						if(msgsnd(datos.buzon,&msg,sizeof(struct mensaje)- sizeof (long),0)==-1){
-							fprintf(stderr,"Coche %d NO LIBERO x=%d y=%d Errno: %d\n",getpid(),posAnt.x,posAnt.y,errno);
-						} else { 
-							fprintf(stderr,"Coche %d LIBERO x=%d y=%d Errno: %d\n",getpid(),posAnt.x,posAnt.y,errno);	
-						}
+					} 
 					}else{
 						flag2=1;
 					}
@@ -676,13 +694,10 @@ int main (int argc, char *argv[]){
 					posAnt=pos1;					
 					
 					if((pos3.y==6) && (flag==0)){
-						ESPERA(sops,SEM_IPC_C1,datos.semid); //Resta uno al semáforo
-						fprintf(stderr, "Soy el coche con PID %d.Entro en el if Flag C1\n", getpid());
+						ESPERA(sops,SEM_IPC_C1,datos.semid); //Resta uno al semáforo;
 
 						flag=1;
-						fprintf(stderr, "Soy el coche con PID %d.Pongo flag a 1\n", getpid());
 						SENHAL(sops,SEM_IPC_C1,datos.semid); //Resta uno al semáforo
-						//SENHAL(sops,6,datos.semid); //Suma uno al semaforo
 					}
 
 					if(j==0){
@@ -696,12 +711,11 @@ int main (int argc, char *argv[]){
 					}while(pos3.y!=-2);
 				}
 
-				msg.tipo=msgTipoLib[posAnt.x+3][posAnt.y];
-				strcpy(msg.texto,"1");
+				msg.tipo=msgTipoLib[posAnt.x][posAnt.y];
+
+				fprintf(stderr,"Coche %d LIBERO 3 x=%d y=%d tipo: %ld\n",getpid(),posAnt.x,posAnt.y,msg.tipo);					
 				if(msgsnd(datos.buzon,&msg,sizeof(struct mensaje)- sizeof (long),0)==-1){
-					fprintf(stderr,"Coche %d NO LIBERO x=%d y=%d Errno: %d\n",getpid(),posAnt.x,posAnt.y,errno);
-				} else { 
-					fprintf(stderr,"Coche %d LIBERO x=%d y=%d Errno: %d\n",getpid(),posAnt.x,posAnt.y,errno);	
+					fprintf(stderr,"Coche %d NO LIBERO x=%d y=%d tipo: %ld\n",getpid(),posAnt.x,posAnt.y,msg.tipo);
 				}
 				fprintf(stderr,"Fin coche %d.\n",getpid());
 				CRUCE_fin_coche();
@@ -711,6 +725,7 @@ int main (int argc, char *argv[]){
 			}
 		}
 	}
+	
 	return 0;
 }
 	
