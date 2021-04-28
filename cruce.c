@@ -29,7 +29,6 @@ struct datos{
 	int argumentos;
 	int fase;
 	pid_t pidDelPadre;
-	pid_t pidDeLosHijos[130];
 	int * myZona;
 }datos;
 
@@ -279,6 +278,12 @@ int main (int argc, char *argv[]){
 	if(sigaction(SIGINT,&ss, NULL)==-1){
 		perror("Error al configurar SIGINT.\n");
 		exit(1);
+	}
+	
+	ss.sa_handler=SIG_IGN;
+	if(sigaction(SIGCLD,&ss,NULL)==-1){
+		perror("Error al configurar SIGCLD.\n");
+		return 1;
 	}
 	
 	//Creamos los semaforos y la memoria
@@ -560,8 +565,7 @@ int main (int argc, char *argv[]){
 				//kill(getpid(),SIGKILL);
 				return 0;
 			}
-		
-		SENHAL(sops,1,datos.semid); //Suma uno al semaforo
+			
 		} /*else {/*
 			//Creamos un nuevo proceso para que gestione el coche
 			//ESPERA(sops,1,datos.semid);
