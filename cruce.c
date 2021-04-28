@@ -20,7 +20,6 @@
 // struct para mensajes 
 struct mensaje {
     long tipo;       /* message type, must be > 0 */
-    char texto[1];    /* message data */
 };
 
 struct datos{
@@ -79,7 +78,7 @@ void ambar(){
 
 int cambiarColorSem()
 {
-	int i, recibir, msgReturn;
+	int i, recibir;
 
 	struct mensaje msg;
 	struct sembuf sops;
@@ -172,99 +171,63 @@ unsigned concatenar(unsigned x, unsigned y) {
     return x * pow + y;        
 }*/
 
-/*
-struct posiciOn avanza(){
-
-	if(-1==msgrcv(datos.buzon,&msg,sizeof(struct mensaje)- sizeof (long),msgTipoLib[pos1.x][pos1.y],0)){
-		fprintf(stderr,"Peaton %d ERROR ESPERAR A QUE SE LIBERE x=%d y=%d Errno: %d\n",getpid(),pos1.x,pos1.y,errno);
-	} else {
-		fprintf(stderr,"Peaton %d ESPERA BIEN A QUE SE LIBERE x=%d y=%d Errno: %d\n",getpid(),pos1.x,pos1.y,errno);
-	}
-
-	pos3=CRUCE_avanzar_peatOn(pos1);			
-
-	fprintf(stderr, "Soy el peaton con PID %d.Avanzo pos1.x=%d, pos1.y=%d x=%d y=%d\n", getpid(),
-	pos1.x,pos1.y,pos3.x,pos3.y);
-	
-	msg.tipo=msgTipoLib[posAnt.x][posAnt.y];
-	if(msgsnd(datos.buzon,&msg,sizeof(struct mensaje)- sizeof (long),0)==-1){
-		fprintf(stderr,"Peaton %d NO LIBERO x=%d y=%d Errno: %d\n",getpid(),posAnt.x,posAnt.y,errno);
-	} else { 
-		fprintf(stderr,"Peaton %d LIBERO x=%d y=%d Errno: %d\n",getpid(),posAnt.x,posAnt.y,errno);	
-	}
-}*/
-
-
 //Manejadora para la señal SIGINT
 
 void terminar (int sig) {
 	int i;
 	pid_t self = getpid();
 
-	if(datos.pidDelPadre != self){ 
-		_exit(0);
-	}
-	//-->La espera por la muerte de los hijos debe ser anterior a la eliminación de los recursos.	
-	for(i=0; i< datos.procesos-1; ++i){
-
-		int status;
-		for(;;){
-			pid_t hijo = wait(&status);
-			if(hijo > 0 && WIFEXITED(status) && WEXITSTATUS(status) == 0){
-			} else if (hijo < 0 && errno == EINTR){
-				continue;
+	if(datos.pidDelPadre == self){
+		while(wait(NULL) > 0);
+		/*if(wait(NULL)==-1){
+			perror("Error en la espera por la muerte del hijo");
+		}*/
+		CRUCE_fin();
+		//while ((wpid = wait(&status)) > 0); 
+		
+		//Eliminamos los semaforos
+		if(datos.semid != -1){ 
+			if(semctl(datos.semid,2,IPC_RMID)<0){
+				perror("Semaforos no eliminados correctamente.\n");
+				//MAndar otra vez o se finaliza 
+				exit (0);
 			} else {
-//-->Este error terminará saliendo. Cuando un proceso ha "purgado" todos sus hijos
-// con las llamadas a wait y vuelve a hacer un wait, da error porque no tiene más.			
-				perror("wait");
-				abort();
+				perror("Semaforos eliminados correctamente.\n");
 			}
-			break;
-		}
-	}	
-	CRUCE_fin();
-	
-	//Eliminamos los semaforos
-	if(datos.semid != -1){ 
-		if(semctl(datos.semid,2,IPC_RMID)<0){
-			perror("Semaforos no eliminados correctamente.\n");
-			//MAndar otra vez o se finaliza 
-			exit (0);
-		} else {
-			perror("Semaforos eliminados correctamente.\n");
-		}
-	}else {
-			perror("Semaforos no creados.\n");
-	}
-
-	//Eliminamos la memoria compartida
-	if(datos.memid != -1){
-		if(shmctl(datos.memid,IPC_RMID,NULL)==-1){
-			perror("Memoria no liberada correctamente.\n");
 		}else {
-			perror("Memoria eliminada correctamente.\n");
+				perror("Semaforos no creados.\n");
 		}
-	}else {
-			perror("Memoria no eliminada.\n");
-	}
-	
-	if(datos.buzon !=-1){
-		if(msgctl(datos.buzon,IPC_RMID,NULL)==-1){
-			perror("Buzon no eliminado correctamente.\n");
-		}else {
-			perror("Buzon eliminado correctamente.\n");
-		}
-	}else {
-			perror("Buzon no eliminado.\n");
-	}
-	printf("Programa acabado correctamente.\n"); //Quitarlo antes de entregar	
 
+		//Eliminamos la memoria compartida
+		if(datos.memid != -1){
+			if(shmctl(datos.memid,IPC_RMID,NULL)==-1){
+				perror("Memoria no liberada correctamente.\n");
+			}else {
+				perror("Memoria eliminada correctamente.\n");
+			}
+		}else {
+				perror("Memoria no eliminada.\n");
+		}
+		
+		if(datos.buzon !=-1){
+			if(msgctl(datos.buzon,IPC_RMID,NULL)==-1){
+				perror("Buzon no eliminado correctamente.\n");
+			}else {
+				perror("Buzon eliminado correctamente.\n");
+			}
+		}else {
+				perror("Buzon no eliminado.\n");
+		}
+		printf("Programa acabado correctamente.\n"); //Quitarlo antes de entregar	
+	}else{
+		exit(1);
+	}
 	exit(0);
 }
 
 
 int main (int argc, char *argv[]){
-	int numProc, velocidad, buzon, flag=0,flag2=0,msgReturn, msgReturnLib;
+	int numProc, velocidad, buzon, flag=0,flag2=0;
 	int flagCritico=0;
 	char * zona;
 	int tipoProceso;
@@ -274,9 +237,8 @@ int main (int argc, char *argv[]){
 	struct mensaje msg;
 	datos.fase=0;
 	int i=0,j=0,h=1;
-	int msgTipoRes[50][17];
 	int msgTipoLib[55][22];
-	int msgTipo3[50][17];
+	int msgTipoLibP[50][17];
 
 	//Comprobamos que los parametros introducidos son los correctos
 	/*
@@ -367,16 +329,19 @@ int main (int argc, char *argv[]){
 
 	for(i=0;i<55;i++){
 		for(j=0;j<21;j++){
-			//msgTipoRes[i][j] = h;
 			msgTipoLib[i][j] = h;
-			//msgTipo3[i][j] = h+2;
 			msg.tipo=msgTipoLib[i][j];
-//-->El dato texto no lo quieres para nada. No tienes por qué rellenarlo. Pero, si lo rellenas,
-// lo tienes que rellenar bien. Al copiar el 1 como cadena, estás escribiendo "1\0", que son
-// dos carácteres pero tu array texto solo tiene tamaño 1. Esto te fallará en encina por
-// salirte del array.
 
-			//strcpy(msg.texto,"1");
+			if(msgsnd(datos.buzon,&msg,sizeof(struct mensaje)- sizeof (long),0)==-1){
+				fprintf(stderr,"No se manda un mensaje liberar a la posiocion %d %d\n",i,j);
+			}
+			h++;
+		}
+	}
+	for(i=0;i<51;i++){
+		for(j=0;j<18;j++){
+			msgTipoLibP[i][j] = h;
+			msg.tipo=msgTipoLibP[i][j];
 			if(msgsnd(datos.buzon,&msg,sizeof(struct mensaje)- sizeof (long),0)==-1){
 				fprintf(stderr,"No se manda un mensaje liberar a la posiocion %d %d\n",i,j);
 			}
@@ -414,7 +379,7 @@ int main (int argc, char *argv[]){
 	
 	for(;;){
 		ESPERA(sops,1,datos.semid);
-		//tipoProceso=CRUCE_nuevo_proceso();
+		tipoProceso=CRUCE_nuevo_proceso();
 		//fprintf(stderr,"Soy el padre con PID %d con tipoProceso %d\n",getpid(),tipoProceso);
 		tipoProceso=1;
 		//Creamos un peaton y lo movemos para ver las posiciones por las que pasa
@@ -432,10 +397,10 @@ int main (int argc, char *argv[]){
 			case 0:
 				//Proceso peaton
 				//Entrar en seccion critica
-				ESPERA(sops,ZonaCritica,datos.semid);
+				ESPERA(sops,6,datos.semid);
 				pos1=CRUCE_inicio_peatOn_ext(&pos2);
 				//Reservar pos2
-				if(-1==msgrcv(datos.buzon,&msg,sizeof(struct mensaje)- sizeof (long),msgTipoLib[pos2.x][pos2.y],0)){
+				if(-1==msgrcv(datos.buzon,&msg,sizeof(struct mensaje)- sizeof (long),msgTipoLibP[pos2.x][pos2.y],0)){
 					fprintf(stderr,"Peaton %d ERROR ESPERAR A QUE SE LIBERE x=%d y=%d Errno: %d\n",getpid(),pos2.x,pos2.y,errno);
 				} else {
 					fprintf(stderr,"Peaton %d ESPERA BIEN A QUE SE LIBERE x=%d y=%d Errno: %d\n",getpid(),pos2.x,pos2.y,errno);
@@ -448,7 +413,7 @@ int main (int argc, char *argv[]){
 
 				do{
 					do{
-						if(-1==msgrcv(datos.buzon,&msg,sizeof(struct mensaje)- sizeof (long),msgTipoLib[pos1.x][pos1.y],0)){
+						if(-1==msgrcv(datos.buzon,&msg,sizeof(struct mensaje)- sizeof (long),msgTipoLibP[pos1.x][pos1.y],0)){
 							fprintf(stderr,"Peaton %d ERROR ESPERAR A QUE SE LIBERE x=%d y=%d Errno: %d\n",getpid(),pos1.x,pos1.y,errno);
 						} else {
 							fprintf(stderr,"Peaton %d ESPERA BIEN A QUE SE LIBERE x=%d y=%d Errno: %d\n",getpid(),pos1.x,pos1.y,errno);
@@ -459,7 +424,7 @@ int main (int argc, char *argv[]){
 						fprintf(stderr, "Soy el peaton con PID %d.Avanzo pos1.x=%d, pos1.y=%d x=%d y=%d\n", getpid(),
 						pos1.x,pos1.y,pos3.x,pos3.y);
 						
-						msg.tipo=msgTipoLib[posAnt.x][posAnt.y];
+						msg.tipo=msgTipoLibP[posAnt.x][posAnt.y];
 						if(msgsnd(datos.buzon,&msg,sizeof(struct mensaje)- sizeof (long),0)==-1){
 							fprintf(stderr,"Peaton %d NO LIBERO x=%d y=%d Errno: %d\n",getpid(),posAnt.x,posAnt.y,errno);
 						} else { 
@@ -478,7 +443,7 @@ int main (int argc, char *argv[]){
 								fprintf(stderr, "Soy el peaton con PID %d.Entro en el if MSGRCV P2\n", getpid());
 								pos1=pos3;
 								do{
-									if(-1==msgrcv(datos.buzon,&msg,sizeof(struct mensaje)- sizeof (long),msgTipoLib[pos1.x][pos1.y],0)){
+									if(-1==msgrcv(datos.buzon,&msg,sizeof(struct mensaje)- sizeof (long),msgTipoLibP[pos1.x][pos1.y],0)){
 										fprintf(stderr,"Peaton %d ERROR ESPERAR A QUE SE LIBERE x=%d y=%d Errno: %d\n",getpid(),pos1.x,pos1.y,errno);
 									} else {
 										fprintf(stderr,"Peaton %d ESPERA BIEN A QUE SE LIBERE x=%d y=%d Errno: %d\n",getpid(),pos1.x,pos1.y,errno);
@@ -490,7 +455,7 @@ int main (int argc, char *argv[]){
 									pos1.x,pos1.y,pos3.x,pos3.y);
 
 									
-									msg.tipo=msgTipoLib[posAnt.x][posAnt.y];
+									msg.tipo=msgTipoLibP[posAnt.x][posAnt.y];
 									//strcpy(msg.texto,"1");
 									if(msgsnd(datos.buzon,&msg,sizeof(struct mensaje)- sizeof (long),0)==-1){
 										fprintf(stderr,"Peaton %d NO LIBERO x=%d y=%d Errno: %d\n",getpid(),posAnt.x,posAnt.y,errno);
@@ -526,7 +491,7 @@ int main (int argc, char *argv[]){
 								pos1=pos3;
 
 								do{
-									if(-1==msgrcv(datos.buzon,&msg,sizeof(struct mensaje)- sizeof (long),msgTipoLib[pos1.x][pos1.y],0)){
+									if(-1==msgrcv(datos.buzon,&msg,sizeof(struct mensaje)- sizeof (long),msgTipoLibP[pos1.x][pos1.y],0)){
 										fprintf(stderr,"Peaton %d ERROR ESPERAR A QUE SE LIBERE x=%d y=%d Errno: %d\n",getpid(),pos1.x,pos1.y,errno);
 									} else {
 										fprintf(stderr,"Peaton %d ESPERA BIEN A QUE SE LIBERE x=%d y=%d Errno: %d\n",getpid(),pos1.x,pos1.y,errno);
@@ -538,7 +503,7 @@ int main (int argc, char *argv[]){
 									pos1.x,pos1.y,pos3.x,pos3.y);
 
 
-									msg.tipo=msgTipoLib[posAnt.x][posAnt.y];
+									msg.tipo=msgTipoLibP[posAnt.x][posAnt.y];
 									if(msgsnd(datos.buzon,&msg,sizeof(struct mensaje)- sizeof (long),0)==-1){
 										fprintf(stderr,"Peaton %d NO LIBERO x=%d y=%d Errno: %d\n",getpid(),posAnt.x,posAnt.y,errno);
 									} else { 
@@ -571,28 +536,29 @@ int main (int argc, char *argv[]){
 							h--;
 
 						pos1=pos3;
-					}while((pos1.x>=0 && pos1.x<=29 && pos1.y==16) || (pos1.x==0 && pos1.y>=12 && pos1.y<=16));//Condicion zona critrica
+					}while(((pos1.x>=0 && pos1.x<=29) && pos1.y==16) || (pos1.x==0 && (pos1.y>=12 && pos1.y<=16)));//Condicion zona critrica
 				
-				if(flagCritico==0)
-					SENHAL(sops,ZonaCritica,datos.semid);
-				else
-					flagCritico=1;
+					if(flagCritico==0){
+						SENHAL(sops,ZonaCritica,datos.semid);
+						fprintf(stderr,"Peaton %d entro en el flag CRITICO\n",getpid());
+						flagCritico=1;
+					}
 
 				}while((pos3.y>=0) || (pos3.x>0));
 
-				msg.tipo=msgTipoLib[posAnt.x][posAnt.y];
+				msg.tipo=msgTipoLibP[posAnt.x][posAnt.y];
 				
 					if(msgsnd(datos.buzon,&msg,sizeof(struct mensaje)- sizeof (long),0)==-1){
-						fprintf(stderr,"Peaton %d NO LIBERO x=%d y=%d Errno: %d\n",getpid(),pos1.x,pos1.y,errno);
+						fprintf(stderr,"Peaton %d NO LIBERO x=%d y=%d Errno: %d\n",getpid(),posAnt.x,posAnt.y,errno);
 					} else { 
-						fprintf(stderr,"Peaton %d LIBERO x=%d y=%d Errno: %d\n",getpid(),pos1.x,pos1.y,errno);	
+						fprintf(stderr,"Peaton %d LIBERO x=%d y=%d Errno: %d\n",getpid(),posAnt.x,posAnt.y,errno);	
 					}
 				
 				fprintf(stderr,"Fin peaton.\n");
 				CRUCE_fin_peatOn();
 				SENHAL(sops,1,datos.semid); //Suma uno al semaforo
-				kill(getpid(),SIGKILL);
-				//return 0;
+				//kill(getpid(),SIGKILL);
+				return 0;
 			}
 		
 		SENHAL(sops,1,datos.semid); //Suma uno al semaforo
@@ -725,8 +691,8 @@ int main (int argc, char *argv[]){
 				SENHAL(sops,1,datos.semid); //Suma uno al semaforo
 				//kill(getpid(),SIGKILL);
 				return 0;	
-			}*/
-		}
+			}
+		}*/
 	}
 	
 	return 0;
