@@ -177,11 +177,14 @@ void terminar (int sig) {
 	pid_t self = getpid();
 
 	if(datos.pidDelPadre == self){
-		while(wait(NULL) > 0);
+		while(wait(NULL) > 0)
+		{
+
+		};
 		/*if(wait(NULL)==-1){
 			perror("Error en la espera por la muerte del hijo");
 		}*/
-		CRUCE_fin();
+		CRUCE_fin();	
 		//while ((wpid = wait(&status)) > 0); 
 		
 		//Eliminamos los semaforos
@@ -264,7 +267,7 @@ int main (int argc, char *argv[]){
 
 	//fprintf(stderr,"Numproc es %d\n",numProc);
 
-	if(numProc < 2 && numProc > 128 ){
+	if(numProc < 2 && numProc > 50 ){
 		printf("Error, el numero de procesos tiene que ser mayor que 2 y menor a 128.\n\n");
 		ayuda();
 		return 2;
@@ -392,8 +395,6 @@ int main (int argc, char *argv[]){
 
 		if(tipoProceso==PEAToN){
 			//Creamos un nuevo proceso para que gestione el peaton			
-//ssleep(1);
-//if(a++==2){pause();}
 			switch (fork())
 			{
 			case -1:
@@ -565,7 +566,7 @@ int main (int argc, char *argv[]){
 				//kill(getpid(),SIGKILL);
 				return 0;
 			}
-			
+
 		} /*else {/*
 			//Creamos un nuevo proceso para que gestione el coche
 			//ESPERA(sops,1,datos.semid);
