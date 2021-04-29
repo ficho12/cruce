@@ -497,7 +497,7 @@ int main (int argc, char *argv[]){
 
 							if((pos3.y>=13) && (pos3.y<=15)){
 								ESPERA(sops,SEM_IPC_P1,datos.semid); 
-								//ESPERA(sops,SEM_IPC_C1,datos.semid);  ////
+								ESPERA(sops,CRUCE_COCHES,datos.semid); 
 								fprintf(stderr, "Soy el peaton con PID %d.Entro en el if MSGRCV P1\n", getpid());
 								pos1=pos3;
 
@@ -535,8 +535,8 @@ int main (int argc, char *argv[]){
 								}while(pos3.x!=41);
 								
 								fprintf(stderr, "Soy el peaton con PID %d.Pongo flag a 1\n", getpid());
-								//SENHAL(sops,SEM_IPC_C1,datos.semid); ////
 								SENHAL(sops,SEM_IPC_P1,datos.semid);
+								SENHAL(sops,CRUCE_COCHES,datos.semid);
 							}
 									
 						}
@@ -569,7 +569,6 @@ int main (int argc, char *argv[]){
 				fprintf(stderr,"Fin peaton.\n");
 				CRUCE_fin_peatOn();
 				SENHAL(sops,1,datos.semid); //Suma uno al semaforo
-				//kill(getpid(),SIGKILL);
 				return 0;
 			}
 
@@ -589,8 +588,6 @@ int main (int argc, char *argv[]){
 				
 				fprintf(stderr, "Soy el coche con PID %d. pos1.x=%d, pos1.y=%d\n", getpid(),
 					pos1.x,pos1.y);
-
-				//posAnt=pos1;
 		
 				if(pos1.y==10)			//C2
 				{
@@ -607,7 +604,7 @@ int main (int argc, char *argv[]){
 
 						
 
-						if(flag2==1 && flagCruce<8){
+						if(flag2==1 && flagCruce<6){ //Libera x=33 y=10 //flagCruce estaba a <8
 							msg.tipo=msgTipoLib[posAnt.x+2][posAnt.y];
 							fprintf(stderr,"Coche %d LIBERO 1 x=%d y=%d tipo: %ld tipoLib: %d\n",getpid(),posAnt.x,posAnt.y,msg.tipo,msgTipoLib[posAnt.x+2][posAnt.y]);	
 							if(msgsnd(datos.buzon,&msg,sizeof(struct mensaje)- sizeof (long),0)==-1)
@@ -636,53 +633,50 @@ int main (int argc, char *argv[]){
 							ESPERA(sops,CRUCE_COCHES,datos.semid);
 							flagCruce=1;	
 						}else if(pos3.x==29){	
-							//ESPERA(sops,SEM_IPC_P1,datos.semid); //////
 							SENHAL(sops,SEM_IPC_C2,datos.semid);
 						}
 						
 
-					}while(pos1.y!=13);
-					//SENHAL(sops,CRUCE_COCHES,datos.semid);					
-
+					}while(pos1.y>0);					
 				}
 				
 				if(pos1.x==33){					//C1 con x=33
 					do{ 
-						if(pos1.y<22){
+						if(flag2==0){
 						fprintf(stderr,"Coche %d ESPERO EN 3 POR x=%d y=%d tipo %d\n",getpid(),pos1.x,pos1.y+6,msgTipoLib[pos1.x+2][pos1.y+6]);
 
 					if(-1==msgrcv(datos.buzon,&msg,sizeof(struct mensaje)- sizeof (long),msgTipoLib[pos1.x+2][pos1.y+6],0)){
 
 					}
 
+					posAnt=pos1;					
+
 					fprintf(stderr, "Coche %d PASA 3\n", getpid());
 						}
 					pos3=CRUCE_avanzar_coche(pos1);
 
-					if(flag2==1){
-						msg.tipo=msgTipoLib[posAnt.x+2][posAnt.y];
+					if(flag2==1){    
+						msg.tipo=msgTipoLib[posAnt.x+2][posAnt.y+6];
 						
-						fprintf(stderr,"Coche %d LIBERO 3 x=%d y=%d tipo: %ld\n",getpid(),posAnt.x,posAnt.y,msg.tipo);							
-						if(msgsnd(datos.buzon,&msg,sizeof(struct mensaje)- sizeof (long),0)==-1){
-					} 
+						fprintf(stderr,"Coche %d LIBERO 3 x=%d y=%d tipo: %ld\n",getpid(),posAnt.x,posAnt.y+6,msg.tipo);							
+						if(msgsnd(datos.buzon,&msg,sizeof(struct mensaje)- sizeof (long),0)==-1)
+						{
+						}
+					flag2++;
 					}else{
-						flag2=1;
+						flag2=2;
 					}
 
-					posAnt=pos1;					
 					
 					if((pos3.y==6) && (flag==0)){
 						ESPERA(sops,SEM_IPC_C1,datos.semid);
+						ESPERA(sops,CRUCE_COCHES,datos.semid);
+						flag2=1;
 						flag=1;
 					}
 					if((pos3.y==13)&&(flag==1)){
-						ESPERA(sops,CRUCE_COCHES,datos.semid);
-						//SENHAL(sops,SEM_IPC_C1,datos.semid);
 						flag=2;
 					}
-					//if((pos3.y==17) && (flag==2)){
-					//	flag=3;
-					//}
 
 					if(j==0){
 						pausa_coche();
@@ -693,27 +687,15 @@ int main (int argc, char *argv[]){
 					pos1=pos3;
 
 					}while(pos3.y!=-2);
-				}
-				for(i=0; i<7;i++){
-					msg.tipo=msgTipoLib[posAnt.x+2][posAnt.y+i];
-
-					fprintf(stderr,"Coche %d LIBERO 4 x=%d y=%d tipo: %ld tipoLib %d\n",getpid(),posAnt.x,posAnt.y,msg.tipo,msgTipoLib[posAnt.x+2][posAnt.y+i]);					
-					if(msgsnd(datos.buzon,&msg,sizeof(struct mensaje)- sizeof (long),0)==-1){
-						fprintf(stderr,"Coche %d NO LIBERO 4 x=%d y=%d tipo: %ld\n",getpid(),posAnt.x+2,posAnt.y+i,msg.tipo);
-					}
-				}
-						
+				}						
+													
+				fprintf(stderr,"Fin coche %d.\n",getpid());
+				CRUCE_fin_coche();
+				SENHAL(sops,1,datos.semid); //Suma uno al semaforo
 				if(flag==2)
 					SENHAL(sops,SEM_IPC_C1,datos.semid);
 				
 				SENHAL(sops,CRUCE_COCHES,datos.semid);
-				//SENHAL(sops,SEM_IPC_P1,datos.semid);
-					
-				
-				fprintf(stderr,"Fin coche %d.\n",getpid());
-				CRUCE_fin_coche();
-				SENHAL(sops,1,datos.semid); //Suma uno al semaforo
-				//kill(getpid(),SIGKILL);
 				return 0;	
 			}
 		}
