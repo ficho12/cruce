@@ -74,9 +74,7 @@ void ambar(){
 
 int cambiarColorSem()
 {
-	int i, recibir;
-
-	struct mensaje msg;
+	int i;
 	struct sembuf sops;
 
 	datos.fase = 0;
@@ -154,11 +152,13 @@ int verify(char * string)
     return 0;
 }
 
-/*union semun {
+/*
+union semun {
     int val;
     struct semid_ds *buf;
     unsigned short  *array;
-} arg;*/
+} arg;
+*/
 
 //Manejadora para la señal SIGINT
 
@@ -167,10 +167,7 @@ void terminar (int sig) {
 	pid_t self = getpid();
 
 	if(datos.pidDelPadre == self){
-		while(wait(NULL) > 0)
-		{
-
-		};
+		while(wait(NULL) > 0);
 
 		CRUCE_fin();	
 		
@@ -179,35 +176,25 @@ void terminar (int sig) {
 			if(semctl(datos.semid,2,IPC_RMID)<0){
 				perror("Semaforos no eliminados correctamente.\n");
 				exit (1);
-			} else {
-				perror("Semaforos eliminados correctamente.\n");
-			}
-		}else {
-				perror("Semaforos no creados.\n");
+			}	
 		}
 
 		//Eliminamos la memoria compartida
 		if(datos.memid != -1){
 			if(shmctl(datos.memid,IPC_RMID,NULL)==-1){
 				perror("Memoria no liberada correctamente.\n");
-			}else {
-				perror("Memoria eliminada correctamente.\n");
+				exit(1);	
 			}
-		}else {
-				perror("Memoria no eliminada.\n");
 		}
 		
 		if(datos.buzon !=-1){
-			if(msgctl(datos.buzon,IPC_RMID,NULL)==-1){
+			if(msgctl(datos.buzon,IPC_RMID,NULL)==-1){ 
 				perror("Buzon no eliminado correctamente.\n");
-			}else {
-				perror("Buzon eliminado correctamente.\n");
+				exit(1);
 			}
-		}else {
-				perror("Buzon no eliminado.\n");
 		}
 	}else{
-		exit(1);
+		exit(0);
 	}
 	exit(0);
 }
@@ -241,9 +228,9 @@ int main (int argc, char *argv[]){
 
 	
 
-	if(!verify(argv[1]))
+	if(!verify(argv[2]))
 	{
-		velocidad = atoi(argv[1]);
+		velocidad = atoi(argv[2]);
 	}else{
 		printf("Error. El parametro velocidad debe ser un número.\n\n");
 		ayuda();
@@ -257,9 +244,9 @@ int main (int argc, char *argv[]){
 		return 2;
 	}
 
-	if(!verify(argv[2]))
+	if(!verify(argv[1]))
 	{
-		numProc = atoi(argv[2]);
+		numProc = atoi(argv[1]);
 	}else{
 		printf("Error. El parametro de procesos debe ser un número.\n\n");
 		ayuda();
@@ -293,7 +280,7 @@ int main (int argc, char *argv[]){
 	datos.semid=semget(IPC_PRIVATE, 8, IPC_CREAT|0600);
 	if(datos.semid==-1){
 		perror("Error al crear los semaforos.\n");
-		kill(getpid(),SIGTERM);							//Llamar manejadora
+		kill(getpid(),SIGTERM);
 	}
 
 	//arg.val=numProc-2;
@@ -353,7 +340,8 @@ int main (int argc, char *argv[]){
 			msg.tipo=msgTipoLib[i][j];
 
 			if(msgsnd(datos.buzon,&msg,sizeof(struct mensaje)- sizeof (long),0)==-1){
-				fprintf(stderr,"No se manda un mensaje liberar a la posiocion %d %d\n",i,j);
+				perror("No se manda un mensaje liberar inicial coche");
+				kill(getpid(),SIGTERM);
 			}
 			h++;
 		}
@@ -365,7 +353,8 @@ int main (int argc, char *argv[]){
 			msgTipoLibP[i][j] = h;
 			msg.tipo=msgTipoLibP[i][j];
 			if(msgsnd(datos.buzon,&msg,sizeof(struct mensaje)- sizeof (long),0)==-1){
-				fprintf(stderr,"No se manda un mensaje liberar a la posiocion %d %d\n",i,j);
+				perror("No se manda un mensaje liberar inicial coche");
+				kill(getpid(),SIGTERM);
 			}
 			h++;
 		}
@@ -373,7 +362,7 @@ int main (int argc, char *argv[]){
 	h=0;
 	j=0;
 
-	if(CRUCE_inicio(velocidad, numProc, datos.semid, zona)==-1){
+	if(CRUCE_inicio(velocidad,numProc, datos.semid, zona)==-1){
 		perror("Error al llamar a CRUCE_inicio.\n");
 		kill(getpid(),SIGTERM);
 	}
@@ -392,8 +381,8 @@ int main (int argc, char *argv[]){
 	switch(fork())
 	{
 		case -1:	 
-			perror("Error al crear el proceso Gestor Semafórico.\n");
-			kill(getpid(),SIGTERM);							//Llamamos a la manejadora
+			perror("Error al crear el proceso Gestor Semafórico.");
+			kill(getpid(),SIGTERM);
 			break;
 		case 0: 
 			cambiarColorSem();						//Gestor Semafórico
@@ -419,66 +408,46 @@ int main (int argc, char *argv[]){
 				pos1=CRUCE_inicio_peatOn_ext(&pos2);
 				
 				if(-1==msgrcv(datos.buzon,&msg,sizeof(struct mensaje)- sizeof (long),msgTipoLibP[pos2.x][pos2.y],0)){
-					//fprintf(stderr,"Peaton %d ERROR ESPERAR A QUE SE LIBERE x=%d y=%d Errno: %d\n",getpid(),pos2.x,pos2.y,errno);
 					perror("Error esperar peaton 1");
-				} /*else {
-					fprintf(stderr,"Peaton %d ESPERA BIEN A QUE SE LIBERE x=%d y=%d Errno: %d\n",getpid(),pos2.x,pos2.y,errno);
-				}	*/
+					kill(getpid(),SIGTERM);	
+				} 
 				
 				posAnt=pos2;
-
-				//fprintf(stderr, "Soy el peaton con PID %d.HOLA pos1.x=%d, pos1.y=%d pos2.x=%d pos2.y=%d\n", getpid(),pos1.x,pos1.y,pos2.x,pos2.y);
 
 				do{
 					do{
 						if(-1==msgrcv(datos.buzon,&msg,sizeof(struct mensaje)- sizeof (long),msgTipoLibP[pos1.x][pos1.y],0)){
-							//fprintf(stderr,"Peaton %d ERROR ESPERAR A QUE SE LIBERE x=%d y=%d Errno: %d\n",getpid(),pos1.x,pos1.y,errno);
 							perror("Error esperar peaton 2");
-						} /*else {
-							fprintf(stderr,"Peaton %d ESPERA BIEN A QUE SE LIBERE x=%d y=%d Errno: %d\n",getpid(),pos1.x,pos1.y,errno);
-						}	*/	
+							kill(getpid(),SIGTERM);
+						} 	
 						
 						pos3=CRUCE_avanzar_peatOn(pos1);
 						
-						//fprintf(stderr, "Soy el peaton con PID %d.Avanzo pos1.x=%d, pos1.y=%d x=%d y=%d\n", getpid(),pos1.x,pos1.y,pos3.x,pos3.y);
-						
 						msg.tipo=msgTipoLibP[posAnt.x][posAnt.y];
 						if(msgsnd(datos.buzon,&msg,sizeof(struct mensaje)- sizeof (long),0)==-1){
-							//fprintf(stderr,"Peaton %d NO LIBERO x=%d y=%d Errno: %d\n",getpid(),posAnt.x,posAnt.y,errno);
 							perror("Error enviar peaton 1");
-						} /*else { 
-							fprintf(stderr,"Peaton %d LIBERO x=%d y=%d Errno: %d\n",getpid(),posAnt.x,posAnt.y,errno);	
-						}*/
+							kill(getpid(),SIGTERM);
+						} 
 						posAnt=pos1;						
 
 						if((pos3.y==11)){
 
-							//fprintf(stderr, "Soy el peaton con PID %d.Entro en el if Flag P2\n", getpid());
-
-							if((pos3.x>=21) && (pos3.x<=27)){
+							if((pos3.x>=21) && (pos3.x<=27)){			//P1
 								ESPERA(sops,SEM_IPC_P2,datos.semid); 
-								//fprintf(stderr, "Soy el peaton con PID %d.Entro en el if MSGRCV P2\n", getpid());
 								pos1=pos3;
 								do{
 									if(-1==msgrcv(datos.buzon,&msg,sizeof(struct mensaje)- sizeof (long),msgTipoLibP[pos1.x][pos1.y],0)){
-										//fprintf(stderr,"Peaton %d ERROR ESPERAR A QUE SE LIBERE x=%d y=%d Errno: %d\n",getpid(),pos1.x,pos1.y,errno);
 										perror("Error esperar peaton 3");
-									} /*else {
-										fprintf(stderr,"Peaton %d ESPERA BIEN A QUE SE LIBERE x=%d y=%d Errno: %d\n",getpid(),pos1.x,pos1.y,errno);
-									}*/
+										kill(getpid(),SIGTERM);
+									}
 
 									pos3=CRUCE_avanzar_peatOn(pos1);
-
-									//fprintf(stderr, "Soy el peaton con PID %d.Avanzo pos1.x=%d, pos1.y=%d x=%d y=%d\n", getpid(),pos1.x,pos1.y,pos3.x,pos3.y);
-
 									
 									msg.tipo=msgTipoLibP[posAnt.x][posAnt.y];
 									if(msgsnd(datos.buzon,&msg,sizeof(struct mensaje)- sizeof (long),0)==-1){
-										//fprintf(stderr,"Peaton %d NO LIBERO x=%d y=%d Errno: %d\n",getpid(),posAnt.x,posAnt.y,errno);
 										perror("Error enviar peaton 2");
-									} /*else { 
-										fprintf(stderr,"Peaton %d LIBERO x=%d y=%d Errno: %d\n",getpid(),posAnt.x,posAnt.y,errno);	
-									}*/
+										kill(getpid(),SIGTERM);
+									}
 
 									posAnt=pos1;				
 
@@ -491,7 +460,6 @@ int main (int argc, char *argv[]){
 									pos1=pos3;
 
 								}while(pos3.y!=6);
-								//fprintf(stderr, "Soy el peaton con PID %d.Pongo flag a 1\n", getpid());
 								SENHAL(sops,SEM_IPC_P2,datos.semid); 
 							}
 							
@@ -499,33 +467,24 @@ int main (int argc, char *argv[]){
 						
 						if((pos3.x==30)){
 
-							//fprintf(stderr, "Soy el peaton con PID %d.Entro en el if Flag P1\n", getpid());
-							if((pos3.y>=13) && (pos3.y<=15)){
+							if((pos3.y>=13) && (pos3.y<=15)){		//P2
 								ESPERA(sops,SEM_IPC_P1,datos.semid); 
 								ESPERA(sops,CRUCE_COCHES,datos.semid); 
-								//fprintf(stderr, "Soy el peaton con PID %d.Entro en el if MSGRCV P1\n", getpid());
 								pos1=pos3;
 
 								do{
 									if(-1==msgrcv(datos.buzon,&msg,sizeof(struct mensaje)- sizeof (long),msgTipoLibP[pos1.x][pos1.y],0)){
-										//fprintf(stderr,"Peaton %d ERROR ESPERAR A QUE SE LIBERE x=%d y=%d Errno: %d\n",getpid(),pos1.x,pos1.y,errno);
 										perror("Error esperar peaton 4");
-									} /*else {
-										fprintf(stderr,"Peaton %d ESPERA BIEN A QUE SE LIBERE x=%d y=%d Errno: %d\n",getpid(),pos1.x,pos1.y,errno);
-									}*/
+										kill(getpid(),SIGTERM);
+									}
 
 									pos3=CRUCE_avanzar_peatOn(pos1);
 
-									//fprintf(stderr, "Soy el peaton con PID %d.Avanzo pos1.x=%d, pos1.y=%d x=%d y=%d\n", getpid(),pos1.x,pos1.y,pos3.x,pos3.y);
-
-
 									msg.tipo=msgTipoLibP[posAnt.x][posAnt.y];
 									if(msgsnd(datos.buzon,&msg,sizeof(struct mensaje)- sizeof (long),0)==-1){
-										//fprintf(stderr,"Peaton %d NO LIBERO x=%d y=%d Errno: %d\n",getpid(),posAnt.x,posAnt.y,errno);
-										perror("Error esperar peaton 3");
-									} /*else { 
-										fprintf(stderr,"Peaton %d LIBERO x=%d y=%d Errno: %d\n",getpid(),posAnt.x,posAnt.y,errno);	
-									}*/
+										perror("Error esperar peaton 3.");
+										kill(getpid(),SIGTERM);
+									} 
 
 									posAnt=pos1;
 
@@ -539,8 +498,7 @@ int main (int argc, char *argv[]){
 										
 
 								}while(pos3.x!=41);
-								
-								//fprintf(stderr, "Soy el peaton con PID %d.Pongo flag a 1\n", getpid());
+
 								SENHAL(sops,SEM_IPC_P1,datos.semid);
 								SENHAL(sops,CRUCE_COCHES,datos.semid);
 							}
@@ -558,26 +516,21 @@ int main (int argc, char *argv[]){
 				
 					if(flagCritico==0){
 						SENHAL(sops,ZONA_CRITICA,datos.semid);
-						//fprintf(stderr,"Peaton %d entro en el flag CRITICO\n",getpid());
 						flagCritico=1;
 					}
 
 				}while((pos3.y>=0) || (pos3.x>0));
 
 				msg.tipo=msgTipoLibP[posAnt.x][posAnt.y];
-				
-					if(msgsnd(datos.buzon,&msg,sizeof(struct mensaje)- sizeof (long),0)==-1){
-						fprintf(stderr,"Peaton %d NO LIBERO x=%d y=%d Errno: %d\n",getpid(),posAnt.x,posAnt.y,errno);
-						perror("Error enviar peaton 4");
-					} /*else { 
-						fprintf(stderr,"Peaton %d LIBERO x=%d y=%d Errno: %d\n",getpid(),posAnt.x,posAnt.y,errno);	
-					}*/
-				
-				//fprintf(stderr,"Fin peaton.\n");
 				CRUCE_fin_peatOn();
+				if(msgsnd(datos.buzon,&msg,sizeof(struct mensaje)- sizeof (long),0)==-1){
+						perror("Error enviar peaton 4");
+						kill(getpid(),SIGTERM);
+					}
 				SENHAL(sops,1,datos.semid);
 				return 0;
 			}
+			
 
 		} else {
 			//Creamos un nuevo proceso para que gestione el coche
@@ -589,31 +542,26 @@ int main (int argc, char *argv[]){
 			case 0:
 				//Proceso coche
 				pos1=CRUCE_inicio_coche();
-				
-				//fprintf(stderr, "Soy el coche con PID %d. pos1.x=%d, pos1.y=%d\n", getpid(),pos1.x,pos1.y);
 		
 				if(pos1.y==10)			//C2
 				{
 					do{ 
 						if(flagCruce==0){
-							//fprintf(stderr,"Coche %d ESPERO EN 1 POR x=%d y=%d tipo %d\n",getpid(),pos1.x+8,pos1.y,msgTipoLib[pos1.x+8+2][pos1.y]);
 							if(-1==msgrcv(datos.buzon,&msg,sizeof(struct mensaje)- sizeof (long),msgTipoLib[pos1.x+8+2][pos1.y],0)){
-								//fprintf(stderr,"Coche %d ERROR ESPERAR A QUE SE LIBERE x=%d y=%d Errno: %d\n",getpid(),pos1.x,pos1.y,errno);
 								perror("Error esperar coche 1");
+								kill(getpid(),SIGTERM);
 							} 
 						}
-						//fprintf(stderr, "Coche %d PASA 1\n", getpid());
 						
 						pos3=CRUCE_avanzar_coche(pos1); 						
 
-						if(flagLibCoche==1 && flagCruce<6){ //Libera x=33 y=10 //flagCruce estaba a <8
+						if(flagLibCoche==1 && flagCruce<6){ //Libera x=33 y=10 
 							msg.tipo=msgTipoLib[posAnt.x+2][posAnt.y];
-							//fprintf(stderr,"Coche %d LIBERO 1 x=%d y=%d tipo: %ld tipoLib: %d\n",getpid(),posAnt.x,posAnt.y,msg.tipo,msgTipoLib[posAnt.x+2][posAnt.y]);	
 							if(msgsnd(datos.buzon,&msg,sizeof(struct mensaje)- sizeof (long),0)==-1){
-								//fprintf(stderr,"Coche %d NO LIBERO x=%d y=%d tipo: %ld\n",getpid(),posAnt.x,posAnt.y,msg.tipo);
 								perror("Error enviar coche 1");
+								kill(getpid(),SIGTERM);
 							}
-								
+						
 						}else{
 							flagLibCoche=1;
 						}
@@ -647,25 +595,20 @@ int main (int argc, char *argv[]){
 				if(pos1.x==33){					//C1 con x=33
 					do{ 
 						if(flagLibCoche==0){
-						//fprintf(stderr,"Coche %d ESPERO EN 3 POR x=%d y=%d tipo %d\n",getpid(),pos1.x,pos1.y+6,msgTipoLib[pos1.x+2][pos1.y+6]);
-
 							if(-1==msgrcv(datos.buzon,&msg,sizeof(struct mensaje)- sizeof (long),msgTipoLib[pos1.x+2][pos1.y+6],0)){
-								//fprintf(stderr,"Coche %d NO LIBERO x=%d y=%d tipo: %ld\n",getpid(),posAnt.x,posAnt.y,msg.tipo);  //ojo con el fprintf esta copiado
 								perror("Error esperar coche 2");
+								kill(getpid(),SIGTERM);
 							}
 							posAnt=pos1;					
-							//fprintf(stderr, "Coche %d PASA 3\n", getpid());
 						}
 					pos3=CRUCE_avanzar_coche(pos1);
 
 					if(flagLibCoche==1){    
-						msg.tipo=msgTipoLib[posAnt.x+2][posAnt.y+6];
-						
-						//fprintf(stderr,"Coche %d LIBERO 3 x=%d y=%d tipo: %ld\n",getpid(),posAnt.x,posAnt.y+6,msg.tipo);							
+						msg.tipo=msgTipoLib[posAnt.x+2][posAnt.y+6];							
 						if(msgsnd(datos.buzon,&msg,sizeof(struct mensaje)- sizeof (long),0)==-1)
 						{
-							//fprintf(stderr,"Coche %d NO LIBERO x=%d y=%d tipo: %ld\n",getpid(),posAnt.x,posAnt.y,msg.tipo);  //ojo con el fprintf esta copiado
 							perror("Error enviar coche 2");
+							kill(getpid(),SIGTERM);
 						}
 						flagLibCoche++;
 					}else{
@@ -676,11 +619,11 @@ int main (int argc, char *argv[]){
 					if((pos3.y==6) && (flagCoche==0)){ 
 						ESPERA(sops,SEM_IPC_C1,datos.semid);
 						ESPERA(sops,CRUCE_COCHES,datos.semid);
-						flagLibCoche=1;
 						flagCoche=1;
 					}
 					if((pos3.y==13)&&(flagCoche==1)){
 						flagCoche=2;
+						flagLibCoche=1;
 					}
 
 					if(j==0){
@@ -694,9 +637,8 @@ int main (int argc, char *argv[]){
 					}while(pos3.y!=-2);
 				}						
 													
-				//fprintf(stderr,"Fin coche %d.\n",getpid());
 				CRUCE_fin_coche();
-				SENHAL(sops,1,datos.semid); //Suma uno al semaforo
+				SENHAL(sops,1,datos.semid); 
 				if(flagCoche==2)
 					SENHAL(sops,SEM_IPC_C1,datos.semid);
 				
@@ -705,6 +647,5 @@ int main (int argc, char *argv[]){
 			}
 		}
 	}
-	
 	return 0;
 }
