@@ -220,13 +220,11 @@ int main (int argc, char *argv[]){
 
 	//Comprobamos que los parametros introducidos son los correctos
 	
-	if((argumentos != 3)){
+	if(argumentos != 3){
 		printf("Error en el numero de parametros\n\n");
 		ayuda();
 		return 1;
 	}
-
-	
 
 	if(!verify(argv[2]))
 	{
