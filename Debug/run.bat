@@ -1,1 +1,1 @@
-start cmd /K cruce2 10 10
+cmd /k cruce2 4 25 2>temp.txt
