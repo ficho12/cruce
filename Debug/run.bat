@@ -1,1 +1,1 @@
-cmd /k cruce2 4 25 2>temp.txt
+cmd /k cruce2 20 25 2>temp.txt
