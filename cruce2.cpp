@@ -31,7 +31,7 @@ int verify(char* string)
 struct datos {
     int fase;
     HINSTANCE biblioteca;
-    HANDLE mutex[53][20];
+    HANDLE mutex[52][19];
     HANDLE semC1;
     HANDLE semC2;
     HANDLE semP1;
@@ -120,8 +120,6 @@ int main(int argc, char* argv[]) {
         return 10;
     }
 
-    // Para cada función de la datos.biblioteca que queramos usar hay que llamar a GetProcAddress
-    // para asociar un puntero a función al códugo de la función en la datos.biblioteca
     inicio = (int(*)(int, int))GetProcAddress(datos.biblioteca, "CRUCE_inicio");
     if (inicio == NULL) {
         PERROR("Error al cargar CRUCE_inicio");
@@ -282,7 +280,7 @@ int main(int argc, char* argv[]) {
     for (i = 0; i < 51; i++) {
         for (int j = 0; j < 18; j++) {
 //-->Control de errores        
-            datos.mutex[i][j]= CreateMutex(NULL, TRUE, "Pepito");
+            datos.mutex[i][j]= CreateMutex(NULL, FALSE, NULL);
             if(datos.mutex[i][j]==NULL){ 
                 PERROR("Error en la creacion del mutex.");
                 exit(1);
@@ -295,7 +293,7 @@ int main(int argc, char* argv[]) {
 
         ret = WaitForSingleObject(datos.semNumProc, INFINITE);
 
-        tipo = COCHE; //nuevoProceso();
+        tipo = 1; //nuevoProceso();
         if(tipo==PEAToN){       //Proceso peaton                     
             if (CreateThread(NULL, 0, peaton, NULL, 0, NULL) == NULL) {
                 PERROR("Error al crear el hilo");
@@ -320,7 +318,7 @@ void ambar(){
     if (cambiaColor == NULL) {
         PERROR("Error al cargar CRUCE_pon_semAforo");
         FreeLibrary(datos.biblioteca);
-        //return 11;
+        exit (1);
     }
     
     if(datos.fase==2){
@@ -435,19 +433,22 @@ DWORD WINAPI peaton(LPVOID param) {
     DWORD err;
     int flagPrim = 0;
 
-    PERROR("Entro en peaton");
+    fprintf(stderr,"Entro en peaton");
 
     //Espera por ZonaCritica
     pos1 = inicioPeaton();
-
+    posAnt = pos1;
     do{
         do {
+
             err = WaitForSingleObject(datos.mutex[pos1.x][pos1.y], INFINITE); 
             switch (err) {
                // case WAIT_OBJECT_0:                 PERROR("Error en el wait datos.mutex[pos1.x][pos1.y] WAIT_OBJECT_0 1"); break; 
                 case WAIT_FAILED:                   PERROR("Error en el wait datos.mutex[pos1.x][pos1.y] WAIT_FAILED 1");   exit(1);
-                default:                            break;
+                default:                            fprintf_s(stderr, "%d Ocupo x=%d y=%d.\n", GetCurrentThreadId(), pos1.x, pos1.y);  break;
             }
+            
+            fprintf_s(stderr, "%d estoy en x=%d y=%d y avanzo a x=%d y=%d.\n", GetCurrentThreadId(), posAnt.x, posAnt.y, pos1.x, pos1.y);
             pos3 = avanzaPeaton(pos1);
             if (flagPrim == 1) {
                 ret = ReleaseMutex(datos.mutex[posAnt.x][posAnt.y]);
@@ -455,6 +456,7 @@ DWORD WINAPI peaton(LPVOID param) {
                     PERROR("Error al hacer el signal en datos.mutex[posAnt.x][posAnt.y] 1");
                     exit(1);
                 }
+                fprintf_s(stderr, "%d Libero x=%d y=%d y avanzo a x=%d y=%d.\n", GetCurrentThreadId(), posAnt.x, posAnt.y);
             }
             flagPrim = 1;
             posAnt = pos1;
@@ -472,8 +474,9 @@ DWORD WINAPI peaton(LPVOID param) {
                         switch (err) {
                             //case WAIT_OBJECT_0:                 PERROR("Error en el wait datos.mutex[pos1.x][pos1.y] WAIT_OBJECT_0 3"); break; 
                             case WAIT_FAILED:                   PERROR("Error en el wait datos.mutex[pos1.x][pos1.y] WAIT_FAILED 3");   exit(1);
-                            default:                            break;
+                            default:                            fprintf_s(stderr, "%d Ocupo x=%d y=%d.\n", GetCurrentThreadId(), pos1.x, pos1.y); break;
                         }
+                        fprintf_s(stderr, "%d estoy en x=%d y=%d y avanzo a x=%d y=%d.\n", GetCurrentThreadId(), posAnt.x, posAnt.y, pos1.x, pos1.y);
                         pos3 = avanzaPeaton(pos1);
                         ret = ReleaseMutex(datos.mutex[posAnt.x][posAnt.y]);
                         if (ret == FALSE) {
@@ -512,8 +515,9 @@ DWORD WINAPI peaton(LPVOID param) {
                         switch (err) {
                             //case WAIT_OBJECT_0:                 PERROR("Error en el wait datos.mutex[pos1.x][pos1.y] WAIT_OBJECT_0 6"); break; 
                             case WAIT_FAILED:                   PERROR("Error en el wait datos.mutex[pos1.x][pos1.y] WAIT_FAILED 6");   exit(1);
-                            default:                            break;
+                            default:                            fprintf_s(stderr, "%d Ocupo x=%d y=%d.\n", GetCurrentThreadId(), pos1.x, pos1.y);  break;
                         }
+                        fprintf_s(stderr, "%d estoy en x=%d y=%d y avanzo a x=%d y=%d.\n", GetCurrentThreadId(), posAnt.x, posAnt.y, pos1.x, pos1.y);
                         pos3 = avanzaPeaton(pos1);
 
                         ret = ReleaseMutex(datos.mutex[posAnt.x][posAnt.y]);
@@ -521,6 +525,7 @@ DWORD WINAPI peaton(LPVOID param) {
                             PERROR("Error al hacer el signal en datos.mutex[posAnt.x][posAnt.y] 7");
                             exit(1);
                         }
+                        fprintf_s(stderr, "%d Libero x=%d y=%d.\n", GetCurrentThreadId(), posAnt.x, posAnt.y);
                         posAnt = pos1;
                         pausa();
                         pos1 = pos3;
@@ -550,11 +555,12 @@ DWORD WINAPI peaton(LPVOID param) {
         } while ((pos3.y >= 0) || (pos3.x > 0));
 
         finPeaton();
-        ret = ReleaseMutex(datos.mutex[posAnt.x][posAnt.y]);
+        ret = ReleaseMutex( datos.mutex[posAnt.x][posAnt.y]);
         if (ret == FALSE) {
             PERROR("Error al hacer el signal en datos.mutex[posAnt.x][posAnt.y] 10");
             exit(1);
         }
+        fprintf_s(stderr, "%d Libero x=%d y=%d.\n", GetCurrentThreadId(), posAnt.x, posAnt.y);
 
     ret = ReleaseSemaphore(datos.semNumProc, 1, 0);//Comprobar errores
     if (ret == FALSE) {
@@ -581,22 +587,19 @@ DWORD WINAPI coche(LPVOID param) {
                 switch (err) {
                     //case WAIT_OBJECT_0:                 PERROR("Error en el wait datos.mutex[pos1.x+8+2][pos1.y] WAIT_OBJECT_0 12"); break; 
                     case WAIT_FAILED:                   sprintf_s(tmp, "%d Error wait en x=%d y=%d. 12\n", GetCurrentThreadId(), posAnt.x, posAnt.y); PERROR(tmp); exit(1);
-                    default:                            sprintf_s(tmp, "%d Ocupo x=%d y=%d.\n", GetCurrentThreadId(), pos1.x, pos1.y);  PERROR(tmp); break;
+                    default:                            sprintf_s(tmp, "%d Ocupo x=%d y=%d.\n", GetCurrentThreadId(), pos1.x+8+3, pos1.y);  PERROR(tmp); break;
                 }
             }
-            sprintf_s(tmp, "%d estoy en x=%d y=%d y avanzo a x=%d y=%d.\n",GetCurrentThreadId(), posAnt.x, posAnt.y, pos1.x, pos1.y);
-            PERROR(tmp);
+            fprintf_s(stderr, "%d estoy en x=%d y=%d y avanzo a x=%d y=%d.\n",GetCurrentThreadId(), posAnt.x, posAnt.y, pos1.x+8+3, pos1.y);
             pos3 = avanzaCoche(pos1);
             
             if(flagLibCoche==1 && flagCruce<6){ 
                 ret = ReleaseMutex(datos.mutex[posAnt.x+3][posAnt.y]);//Comprobar errores
                 if (ret == FALSE) {
-                    sprintf_s(tmp, "%d Error signal en x=%d y=%d. 13\n", GetCurrentThreadId(), posAnt.x, posAnt.y);
-                    PERROR(tmp);
+                    fprintf_s(stderr, "%d Error signal en x=%d y=%d. 13\n", GetCurrentThreadId(), posAnt.x+3, posAnt.y);
                     exit(1);
                 }
-                sprintf_s(tmp, "%d Libero x=%d y=%d.\n", GetCurrentThreadId(), posAnt.x, posAnt.y);  
-                PERROR(tmp);
+                fprintf_s(stderr, "%d Libero x=%d y=%d.\n", GetCurrentThreadId(), posAnt.x+3, posAnt.y);  
             }else{
                 flagLibCoche=1;
             }
@@ -634,27 +637,24 @@ DWORD WINAPI coche(LPVOID param) {
     if(pos1.x==33){         //C1
         do{
             if(flagLibCoche==0){
-                err = WaitForSingleObject(datos.mutex[pos1.x+3][pos1.y], INFINITE);
+                err = WaitForSingleObject(datos.mutex[pos1.x+3][pos1.y+6], INFINITE);
                 switch (err) {
                     //case WAIT_OBJECT_0:                 PERROR("Error en el wait datos.mutex[pos1.x+2][pos1.y+6] WAIT_OBJECT_0 17"); break; 
                     case WAIT_FAILED:                    
                         sprintf_s(tmp, "%d Error wait en x=%d y=%d. 18\n", GetCurrentThreadId(), posAnt.x, posAnt.y); PERROR(tmp); exit(1);
-                    default:                            sprintf_s(tmp, "%d Ocupo x=%d y=%d.\n",  GetCurrentThreadId(), pos1.x, pos1.y);  PERROR(tmp); break;
+                    default:                            fprintf_s(stderr, "%d Ocupo x=%d y=%d.\n",  GetCurrentThreadId(), pos1.x+3, pos1.y+6);  PERROR(tmp); break;
                 }
                 posAnt= pos1;
             }
-            sprintf_s(tmp, "%d estoy en x=%d y=%d y avanzo a x=%d y=%d.\n", GetCurrentThreadId(), posAnt.x, posAnt.y, pos1.x, pos1.y);
-            PERROR(tmp);
+            fprintf_s(stderr, "%d estoy en x=%d y=%d y avanzo a x=%d y=%d.\n", GetCurrentThreadId(), posAnt.x, posAnt.y, pos1.x+3, pos1.y+6);
             pos3 = avanzaCoche(pos1);
             if(flagLibCoche==1){
-                ret = ReleaseMutex(datos.mutex[posAnt.x+3][posAnt.y]);//Comprobar errores
+                ret = ReleaseMutex(datos.mutex[posAnt.x+3][posAnt.y+6]);//Comprobar errores
                 if (ret == FALSE) {
-                    sprintf_s(tmp, "%d Error signal en x=%d y=%d. 18\n", GetCurrentThreadId(), posAnt.x, posAnt.y);
-                    PERROR(tmp);
+                    fprintf_s(stderr, "%d Error signal en x=%d y=%d. 18\n", GetCurrentThreadId(), posAnt.x+3, posAnt.y+6);
                     exit(1);
                 }
-                sprintf_s(tmp, "%d Libero x=%d y=%d.\n", GetCurrentThreadId(), posAnt.x, posAnt.y);
-                PERROR(tmp);
+                fprintf_s(stderr, "%d Libero x=%d y=%d.\n", GetCurrentThreadId(), posAnt.x+3, posAnt.y+6);
                 flagLibCoche++;
             } else {
                 flagLibCoche=2;
