@@ -582,25 +582,25 @@ DWORD WINAPI coche(LPVOID param) {
     char tmp[100];
 
     pos1 = inicioCoche();
-    pos1.x = 33;
-    pos1.y = 1;
+    pos1.x = -3;
+    pos1.y = 10;
     if (pos1.y == 10) {          //C2
         do {
             if (flagCruce == 0) {
-                err = WaitForSingleObject(datos.semCoches[pos1.x + 8 ][pos1.y], INFINITE);
+                err = WaitForSingleObject(datos.semCoches[pos1.x + 8][pos1.y], INFINITE);
                 switch (err) {
                     //case WAIT_OBJECT_0:                 PERROR("Error en el wait datos.mutex[pos1.x+8][pos1.y] WAIT_OBJECT_0 12"); break; 
                 case WAIT_FAILED:                       PERROR("% d Error wait en x = % d y = % d. 12\n", GetCurrentThreadId(), posAnt.x, posAnt.y); exit(1);
-                default:                                fprintf(stderr, "Coche %ld. Ocupo mutex[%d][%d]\n", GetCurrentThreadId(), pos1.x , pos1.y);  break;
+                default:                                fprintf(stderr, "Coche %ld. Ocupo mutex[%d][%d]\n", GetCurrentThreadId(), pos1.x+8 , pos1.y);  break;
                 }
             }
             
             fprintf(stderr, "Coche %d PASA 2\n", GetCurrentThreadId());
             pos3 = avanzaCoche(pos1);
 
-            if (flagLibCoche == 1 && flagCruce < 6) {
+            if (flagLibCoche >= 5 && flagCruce < 6) {
                 fprintf(stderr, "Coche %ld. Libero xxx mutex[%d][%d]\n", GetCurrentThreadId(), posAnt.x , posAnt.y);
-                ret = ReleaseSemaphore(datos.semCoches[posAnt.x+8][posAnt.y],1,0);    //Comprobar errores//Comprobar errores
+                ret = ReleaseSemaphore(datos.semCoches[posAnt.x][posAnt.y],1,0);    //Comprobar errores//Comprobar errores
                 if (ret == FALSE) {
                     sprintf_s(tmp, "%d Error signal en x=%d y=%d. 13\n", GetCurrentThreadId(), posAnt.x, posAnt.y); 
                     PERROR(tmp);
@@ -609,7 +609,7 @@ DWORD WINAPI coche(LPVOID param) {
                 //fprintf(stderr, "Coche %ld. Libero xxx mutex[%d][%d]\n", GetCurrentThreadId(), posAnt.x, posAnt.y);
             }
             else {
-                flagLibCoche = 1;
+                flagLibCoche++;
             }
 
             if (flagCruce >= 1)
@@ -645,7 +645,7 @@ DWORD WINAPI coche(LPVOID param) {
             }
         } while (pos1.y > 0);
     }
-    if (pos1.x == 33) {         //C1
+    /*if (pos1.x == 33) {         //C1
         do {
             if (flagLibCoche == 0) {
                 err = WaitForSingleObject(datos.semCoches[pos1.x][pos1.y + 6], INFINITE);
@@ -653,13 +653,14 @@ DWORD WINAPI coche(LPVOID param) {
                     //case WAIT_OBJECT_0:                 PERROR("Error en el wait datos.mutex[pos1.x][pos1.y+6] WAIT_OBJECT_0 17"); break; 
                     case WAIT_FAILED:
                         sprintf_s(tmp, "%d Error wait en x=%d y=%d. 18\n", GetCurrentThreadId(), pos1.x, pos1.y); PERROR(tmp); exit(1);
-                    default:                            fprintf_s(stderr, "Coche %ld Reservo x=[%d] y=[%d].\n", GetCurrentThreadId(), pos1.x, pos1.y + 6);  break;
+                    default:                            //fprintf_s(stderr, "Coche %ld Reservo x=[%d] y=[%d].\n", GetCurrentThreadId(), pos1.x, pos1.y + 6);  
+                        break;
                 }
                 posAnt = pos1;
             }
             
             pos3 = avanzaCoche(pos1);
-            fprintf(stderr, "Coche %ld PASA 1 Pos 1 x=%d y=%d\n", GetCurrentThreadId(), pos1.x, pos1.y);
+            //fprintf(stderr, "Coche %ld PASA 1 Pos 1 x=%d y=%d\n", GetCurrentThreadId(), pos1.x, pos1.y);
 
             if (flagLibCoche == 1) {
                 ret = ReleaseSemaphore(datos.semCoches[posAnt.x][posAnt.y+6], 1, 0);//Comprobar errores
@@ -667,14 +668,14 @@ DWORD WINAPI coche(LPVOID param) {
                     fprintf_s(stderr, "%d Error signal en x=%d y=%d. 18\n", GetCurrentThreadId(), posAnt.x, posAnt.y+6);
                     exit(1);
                 }
-                fprintf_s(stderr, "Coche %ld Libero x=[%d] y=[%d].\n", GetCurrentThreadId(), posAnt.x, posAnt.y+6);
+                //fprintf_s(stderr, "Coche %ld Libero x=[%d] y=[%d].\n", GetCurrentThreadId(), posAnt.x, posAnt.y+6);
                 flagLibCoche++;
             } else {
                 flagLibCoche = 2;
             }
             
             if ((pos3.y == 6) && (flagCoche == 0)) {
-                fprintf(stderr, "Entro a bloquear semaforos.\n");
+                fprintf(stderr, "Entro C1 a bloquear semaforos.\n");
                 err = WaitForSingleObject(datos.semC1, INFINITE);
                 switch (err) {
                     //case WAIT_OBJECT_0:                 PERROR("Error en el wait semC1 WAIT_OBJECT_0 19"); break; 
@@ -687,12 +688,8 @@ DWORD WINAPI coche(LPVOID param) {
                 case WAIT_FAILED:                   PERROR("Error en el wait CRUCE_COCHES WAIT_FAILED 20");   exit(1);
                 default:                            break;
                 }
-                //flagLibCoche = 1;
                 flagCoche = 1;
             }
-            //if ((pos1.y == 8) && (flagCoche ==1)) {
-             //   flagLibCoche = 1;
-          //  }
             if ((pos3.y == 13) && (flagCoche == 1)) {
                 flagCoche = 2;
                 flagLibCoche = 1;
@@ -700,7 +697,7 @@ DWORD WINAPI coche(LPVOID param) {
             pausaCoche();
             pos1 = pos3;
         } while (pos3.y != -2);
-    }
+    }*/
     
     finCoche();
 
@@ -709,15 +706,15 @@ DWORD WINAPI coche(LPVOID param) {
         PERROR("Error al hacer el signal en numProc 23");
         exit(1);
     }
-
+    fprintf(stderr, "Entro a liberar semaforos");
     if (flagCoche == 2) {
-        ret = ReleaseSemaphore(datos.semC1, 1, NULL);//Comprobar errores
+        ret = ReleaseSemaphore(datos.semC1, 1, 0);//Comprobar errores
         if (ret == FALSE) {
             PERROR("Error al hacer el signal en semC1 21");
             exit(1);
         }
     }
-    ret = ReleaseSemaphore(datos.CRUCE_COCHES, 1, NULL);//Comprobar errores
+    ret = ReleaseSemaphore(datos.CRUCE_COCHES, 1, 0);//Comprobar errores
     if (ret == FALSE) {
         PERROR("Error al hacer el signal en CRUCE_COCHES 22");
         exit(1);
