@@ -69,11 +69,11 @@ int main(int argc, char* argv[]) {
     BOOL ret;
 
     argumentos = argc;
-    /*if((argumentos != 3)){
+    if((argumentos != 3)){
         printf("Error en el numero de parametros\n\n");
         ayuda();
         return 1;
-    }*/
+    }
 
     if (!verify(argv[1])) {
         velocidad = atoi(argv[1]);
@@ -98,13 +98,12 @@ int main(int argc, char* argv[]) {
         return 3;
     }
 
-    if (numProc < 2 || numProc > 50) {
-        printf("Error, el numero de procesos tiene que ser mayor que 2 y menor a 128.\n\n");
+    if (numProc < 2 || numProc > 49) {
+        printf("Error, el numero de procesos tiene que ser mayor que 2 y menor a 50.\n\n");
         ayuda();
         return 3;
     }
 
-    // Cargamos la datos.biblioteca
     datos.biblioteca = LoadLibrary("cruce2.dll");
     if (datos.biblioteca == NULL) {
         PERROR("Error al cargar la datos.biblioteca");
