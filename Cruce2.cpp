@@ -39,6 +39,7 @@ struct datos {
     HANDLE semNumProc;
     HANDLE CRUCE_COCHES;
     HANDLE semCoches[52][19];
+    HANDLE semZonaCritica;
 }datos;
 
 DWORD WINAPI gestorSemaforico(LPVOID param);
@@ -67,7 +68,6 @@ int main(int argc, char* argv[]) {
     int argumentos, velocidad, numProc, i = 0, z = 0;
     BOOL ret;
 
-    // ComprobaciÃ³n de parÃ¡metros
     argumentos = argc;
     /*if((argumentos != 3)){
         printf("Error en el numero de parametros\n\n");
@@ -219,58 +219,61 @@ int main(int argc, char* argv[]) {
 
     datos.semC1 = CreateSemaphore(NULL, 0, 1, NULL);
     if (datos.semC1 == NULL) {
-        PERROR("Error al crear el semÃ¡foro C1");
-        return 1;
+        PERROR("Error al crear el semaforo C1");
+        exit(1);
     }
 
     datos.semC2 = CreateSemaphore(NULL, 0, 1, NULL);
     if (datos.semC2 == NULL) {
-        PERROR("Error al crear el semÃ¡foro C2");
-        return 1;
+        PERROR("Error al crear el semaforo C2");
+        exit(1);
     }
 
     datos.semP1 = CreateSemaphore(NULL, 0, 1, NULL);
     if (datos.semP1 == NULL) {
-        PERROR("Error al crear el semÃ¡foro P1");
-        return 1;
+        PERROR("Error al crear el semaforo P1");
+        exit(1);
     }
 
     datos.semP2 = CreateSemaphore(NULL, 0, 1, NULL);
     if (datos.semP2 == NULL) {
-        PERROR("Error al crear el semÃ¡foro P2");
-        return 1;
+        PERROR("Error al crear el semaforo P2");
+        exit(1);
     }
 
     datos.semNumProc = CreateSemaphore(NULL, numProc - 2, numProc, NULL);
     if (datos.semNumProc == NULL) {
-        PERROR("Error al crear el semÃ¡foro semNumProc");
-        return 1;
+        PERROR("Error al crear el semaforo semNumProc");
+        exit(1);
     }
 
     datos.CRUCE_COCHES = CreateSemaphore(NULL, 1, 1, NULL);
     if (datos.semNumProc == NULL) {
-        PERROR("Error al crear el semÃ¡foro CRUCE_COCHES");
-        return 1;
+        PERROR("Error al crear el semaforo CRUCE_COCHES");
+        exit(1);
     }
 
-    // Crear todos los recursos de sincronÃ­a que se necesiten en la prÃ¡ctica
+    datos.semZonaCritica = CreateSemaphore(NULL, 1, 1, NULL);
+    if (datos.semZonaCritica == NULL) {
+        PERROR("Error al crear el semaforo semZonaCritia");
+        exit(1);
+    }
 
     if (inicio(velocidad, numProc) == -1) {
-        fprintf(stderr, "Error en la lamada a cruce inicio.\n");
+        PERROR("Error en la lamada a cruce inicio.\n");
         FreeLibrary(datos.biblioteca);
-        return 12;
+        exit(1);
     }
 
 
     if (CreateThread(NULL, 0, gestorSemaforico, NULL, 0, NULL) == NULL) {
         PERROR("Error al crear el hilo");
-        return 13;
+        exit(1);
     }
     z++;
 
     for (i = 0; i < 51; i++) {
-        for (int j = 0; j < 18; j++) {
-            //-->Control de errores        
+        for (int j = 0; j < 18; j++) {     
             datos.mutex[i][j] = CreateMutex(NULL, FALSE, NULL);
             if (datos.mutex[i][j] == NULL) {
                 PERROR("Error en la creacion del mutex.");
@@ -280,12 +283,11 @@ int main(int argc, char* argv[]) {
     }
 
     for (i = 0; i < 51; i++) {
-        for (int j = 0; j < 18; j++) {
-                //-->Control de errores        
+        for (int j = 0; j < 18; j++) {       
                 datos.semCoches[i][j] = CreateSemaphore(NULL, 1, 1, NULL);
             if (datos.semCoches[i][j] == NULL) {
                 PERROR("Error al crear el semaforo semCoches");
-                return 1;
+                exit(1);
             }
         }
     }
@@ -294,22 +296,22 @@ int main(int argc, char* argv[]) {
         int tipo;
 
         ret = WaitForSingleObject(datos.semNumProc, INFINITE);
+        switch (ret) {
+            case WAIT_FAILED:                   PERROR("Error en el wait semNumProc WAIT_FAILED 1");   exit(1);
+        }
 
         tipo = nuevoProceso();
         if (tipo == PEAToN) {       //Proceso peaton                     
             if (CreateThread(NULL, 0, peaton, NULL, 0, NULL) == NULL) {
-                PERROR("Error al crear el hilo");
-                return 13;
+                PERROR("Error al crear el hilo peaton");
+                exit(1);
             }
             z++;
-
         }
         else {      //Proceso coche
-
-
             if (CreateThread(NULL, 0, coche, NULL, 0, NULL) == NULL) {
-                PERROR("Error al crear el hilo");
-                return 13;
+                PERROR("Error al crear el hilo coche");
+                exit(1);
             }
             z++;
         }
@@ -353,23 +355,22 @@ DWORD WINAPI gestorSemaforico(LPVOID param) {
         if (datos.fase == 1) {
             err = WaitForSingleObject(datos.semP1, INFINITE);
             switch (err) {
-                //case WAIT_OBJECT_0:                 PERROR("Error en el wait semP1 WAIT_OBJECT_0"); break;
-            case WAIT_FAILED:                   PERROR("Error en el wait semP1 WAIT_FAILED");   break;
+                case WAIT_FAILED:                   PERROR("Error en el wait semP1 WAIT_FAILED 2");   exit(1);
             }
             cambiaColor(SEM_P1, ROJO);
         }
 
         cambiaColor(SEM_P2, VERDE);
-        ret = ReleaseSemaphore(datos.semP2, 1, NULL);//Comprobar errores
+        ret = ReleaseSemaphore(datos.semP2, 1, NULL);
         if (ret == FALSE) {
-            PERROR("Error al hacer el signal en P2");
+            PERROR("Error al hacer el signal en P2 3");
             exit(2);
         }
 
         cambiaColor(SEM_C1, VERDE);
         ret = ReleaseSemaphore(datos.semC1, 1, NULL);
         if (ret == FALSE) {
-            PERROR("Error al hacer el signal en C1");
+            PERROR("Error al hacer el signal en C1 4");
             exit(3);
         }
 
@@ -381,23 +382,21 @@ DWORD WINAPI gestorSemaforico(LPVOID param) {
         //Segunda fase duracion 9 pausas
         err = WaitForSingleObject(datos.semC1, INFINITE);
         switch (err) {
-            //case WAIT_OBJECT_0:                 PERROR("Error en el wait semP1 WAIT_OBJECT_0"); break;
-        case WAIT_FAILED:                   PERROR("Error en el wait semP1 WAIT_FAILED");   exit(1);
+            case WAIT_FAILED:                   PERROR("Error en el wait semC1 WAIT_FAILED 5");   exit(1);
         }
         ambar();
         cambiaColor(SEM_C1, ROJO);
 
         err = WaitForSingleObject(datos.semP2, INFINITE);
         switch (err) {
-            //case WAIT_OBJECT_0:                 PERROR("Error en el wait semP1 WAIT_OBJECT_0"); break; 
-        case WAIT_FAILED:                   PERROR("Error en el wait semP1 WAIT_FAILED");   exit(1);
+            case WAIT_FAILED:                   PERROR("Error en el wait semP2 WAIT_FAILED 6");   exit(1);
         }
         cambiaColor(SEM_P2, ROJO);
 
         cambiaColor(SEM_C2, VERDE);
         ret = ReleaseSemaphore(datos.semC2, 1, NULL);
         if (ret == FALSE) {
-            PERROR("Error al hacer el signal en C2");
+            PERROR("Error al hacer el signal en C2 7");
             exit(1);
         }
 
@@ -409,8 +408,7 @@ DWORD WINAPI gestorSemaforico(LPVOID param) {
         //Tercera fase duracion 12 pausas
         err = WaitForSingleObject(datos.semC2, INFINITE);
         switch (err) {
-            //case WAIT_OBJECT_0:                 PERROR("Error en el wait semP1 WAIT_OBJECT_0"); break; 
-        case WAIT_FAILED:                   PERROR("Error en el wait semP1 WAIT_FAILED");   exit(1);
+            case WAIT_FAILED:                   PERROR("Error en el wait semC2 WAIT_FAILED 8");   exit(1);
         }
         ambar();
         cambiaColor(SEM_C2, ROJO);
@@ -418,7 +416,7 @@ DWORD WINAPI gestorSemaforico(LPVOID param) {
         cambiaColor(SEM_P1, VERDE);
         ret = ReleaseSemaphore(datos.semP1, 1, NULL);
         if (ret == FALSE) {
-            PERROR("Error al hacer el signal en P1");
+            PERROR("Error al hacer el signal en P1 9");
             exit(1);
         }
 
@@ -435,10 +433,12 @@ DWORD WINAPI peaton(LPVOID param) {
     BOOL ret;
     DWORD err;
     int flagPrim = 0;
+    int flagCritico=0;
 
-    fprintf(stderr, "Entro en peaton");
-
-    //Espera por ZonaCritica
+    err = WaitForSingleObject(datos.semZonaCritica, INFINITE);
+    switch (err) {
+        case WAIT_FAILED:                   PERROR("Error en el wait semZonaCritica 10");   exit(1);
+    }
     pos1 = inicioPeaton();
     posAnt = pos1;
     do {
@@ -446,53 +446,45 @@ DWORD WINAPI peaton(LPVOID param) {
 
             err = WaitForSingleObject(datos.mutex[pos1.x][pos1.y], INFINITE);
             switch (err) {
-                // case WAIT_OBJECT_0:                 PERROR("Error en el wait datos.mutex[pos1.x][pos1.y] WAIT_OBJECT_0 1"); break; 
-            case WAIT_FAILED:                   PERROR("Error en el wait datos.mutex[pos1.x][pos1.y] WAIT_FAILED 1");   exit(1);
-            default:                            fprintf(stderr, "%d Ocupo x=%d y=%d.\n", GetCurrentThreadId(), pos1.x, pos1.y);  break;
+                case WAIT_FAILED:                   PERROR("Error en el wait mutex WAIT_FAILED 11");   exit(1);
             }
 
-            fprintf_s(stderr, "%d estoy en x=%d y=%d y avanzo a x=%d y=%d.\n", GetCurrentThreadId(), posAnt.x, posAnt.y, pos1.x, pos1.y);
             pos3 = avanzaPeaton(pos1);
             if (flagPrim == 1) {
                 ret = ReleaseMutex(datos.mutex[posAnt.x][posAnt.y]);
                 if (ret == FALSE) {
-                    PERROR("Error al hacer el signal en datos.mutex[posAnt.x][posAnt.y] 1");
+                    PERROR("Error al hacer el signal en mutex 12");
                     exit(1);
                 }
-                fprintf(stderr, "%d Libero x=%d y=%d.\n", GetCurrentThreadId(), posAnt.x, posAnt.y);
             }
             flagPrim = 1;
             posAnt = pos1;
             if (pos3.y == 11) {
-                if ((pos3.x >= 21) && (pos3.x <= 27)) {     //P1
-                    err = WaitForSingleObject(datos.semP2, INFINITE);   //Esperas P2
+                if ((pos3.x >= 21) && (pos3.x <= 27)) {     //P2
+                    err = WaitForSingleObject(datos.semP2, INFINITE);
                     switch (err) {
-                        //case WAIT_OBJECT_0:                 PERROR("Error en el wait semP2 WAIT_OBJECT_0 2"); break; 
-                    case WAIT_FAILED:                   PERROR("Error en el wait semP2 WAIT_FAILED 2");   exit(1);
-                    default:                            break;
+                        case WAIT_FAILED:                   PERROR("Error en el wait semP2 WAIT_FAILED 13");   exit(1);
                     }
                     pos1 = pos3;
                     do {
                         err = WaitForSingleObject(datos.mutex[pos1.x][pos1.y], INFINITE);
                         switch (err) {
-                            //case WAIT_OBJECT_0:                 PERROR("Error en el wait datos.mutex[pos1.x][pos1.y] WAIT_OBJECT_0 3"); break; 
-                        case WAIT_FAILED:                   PERROR("Error en el wait datos.mutex[pos1.x][pos1.y] WAIT_FAILED 3");   exit(1);
-                        default:                            fprintf(stderr, "%d Ocupo x=%d y=%d.\n", GetCurrentThreadId(), pos1.x, pos1.y); break;
-                        }
-                        fprintf(stderr, "%d estoy en x=%d y=%d y avanzo a x=%d y=%d.\n", GetCurrentThreadId(), posAnt.x, posAnt.y, pos1.x, pos1.y);
+                            case WAIT_FAILED:                   PERROR("Error en el wait mutex WAIT_FAILED 14");   exit(1);
+                            }
                         pos3 = avanzaPeaton(pos1);
                         ret = ReleaseMutex(datos.mutex[posAnt.x][posAnt.y]);
                         if (ret == FALSE) {
-                            PERROR("Error al hacer el signal en datos.mutex[posAnt.x][posAnt.y] 2");
+                            PERROR("Error al hacer el signal en mutex 15");
                             exit(1);
                         }
                         posAnt = pos1;
                         pausa();
                         pos1 = pos3;
                     } while (pos3.y != 6);
+                    
                     ret = ReleaseSemaphore(datos.semP2, 1, NULL);
                     if (ret == FALSE) {
-                        PERROR("Error al hacer el signal en P2 3");
+                        PERROR("Error al hacer el signal en P2 16");
                         exit(1);
                     }
                 }
@@ -501,73 +493,66 @@ DWORD WINAPI peaton(LPVOID param) {
                 if ((pos3.y >= 13) && (pos3.y <= 15)) {       //P1
                     err = WaitForSingleObject(datos.semP1, INFINITE);
                     switch (err) {
-                        //case WAIT_OBJECT_0:                 PERROR("Error en el wait semP1 WAIT_OBJECT_0 4"); break; 
-                    case WAIT_FAILED:                   PERROR("Error en el wait semP1 WAIT_FAILED 4");   exit(1);
-                    default:                            break;
+                        case WAIT_FAILED:                   PERROR("Error en el wait semP1 WAIT_FAILED 17");   exit(1);
                     }
 
                     err = WaitForSingleObject(datos.CRUCE_COCHES, INFINITE);
                     switch (err) {
-                        //case WAIT_OBJECT_0:                 PERROR("Error en el wait CRUCE_COCHES WAIT_OBJECT_0 5"); break;
-                    case WAIT_FAILED:                   PERROR("Error en el wait CRUCE_COCHES WAIT_FAILED 5");   exit(1);
-                    default:                            break;
+                        case WAIT_FAILED:                   PERROR("Error en el wait CRUCE_COCHES WAIT_FAILED 18");   exit(1);
                     }
                     pos1 = pos3;
                     do {
                         err = WaitForSingleObject(datos.mutex[pos1.x][pos1.y], INFINITE);
                         switch (err) {
-                            //case WAIT_OBJECT_0:                 PERROR("Error en el wait datos.mutex[pos1.x][pos1.y] WAIT_OBJECT_0 6"); break; 
-                        case WAIT_FAILED:                   PERROR("Error en el wait datos.mutex[pos1.x][pos1.y] WAIT_FAILED 6");   exit(1);
-                        default:                            fprintf(stderr, "%d Ocupo x=%d y=%d.\n", GetCurrentThreadId(), pos1.x, pos1.y);  break;
+                            case WAIT_FAILED:                   PERROR("Error en el wait mutex WAIT_FAILED 19");   exit(1);
                         }
-                        fprintf_s(stderr, "%d estoy en x=%d y=%d y avanzo a x=%d y=%d.\n", GetCurrentThreadId(), posAnt.x, posAnt.y, pos1.x, pos1.y);
                         pos3 = avanzaPeaton(pos1);
 
                         ret = ReleaseMutex(datos.mutex[posAnt.x][posAnt.y]);
                         if (ret == FALSE) {
-                            PERROR("Error al hacer el signal en datos.mutex[posAnt.x][posAnt.y] 7");
+                            PERROR("Error al hacer el signal en mutex 20");
                             exit(1);
                         }
-                        fprintf(stderr, "%d Libero x=%d y=%d.\n", GetCurrentThreadId(), posAnt.x, posAnt.y);
                         posAnt = pos1;
                         pausa();
                         pos1 = pos3;
                     } while (pos3.x != 41);
                     ret = ReleaseSemaphore(datos.semP1, 1, NULL);
                     if (ret == FALSE) {
-                        PERROR("Error al hacer el signal en P1 8");
+                        PERROR("Error al hacer el signal en P1 21");
                         exit(1);
                     }
 
                     ret = ReleaseSemaphore(datos.CRUCE_COCHES, 1, NULL);
                     if (ret == FALSE) {
-                        PERROR("Error al hacer el signal en CRUCE_COCHES 9");
+                        PERROR("Error al hacer el signal en CRUCE_COCHES 22");
                         exit(1);
                     }
                 }
             }
             pausa();
             pos1 = pos3;
-        } while (((pos1.x >= 0 && pos1.x <= 29) && pos1.y == 16) || (pos1.x == 0 && (pos1.y > 1 && pos1.y < 16)));//Condicion zona critia
-        /*if(flagCritico==0){
-            //SeÃ±al ZonaCritica
+        } while (((pos1.x >= 0 && pos1.x <= 29) && pos1.y == 16) || (pos1.x == 0 && (pos1.y > 11 && pos1.y < 16)));//Condicion zona critia
+        if(flagCritico==0){
+            ret = ReleaseSemaphore(datos.semZonaCritica, 1, NULL);
+            if (ret == FALSE) {
+                PERROR("Error al hacer el signal en semZonaCritica 23");
+                exit(1);
+            }
             flagCritico = 1;
-         }*/
-
-         //-->El enunciado solo habla de que la y tiene que ser mayor o igual a 0             
+        }        
     } while ((pos3.y >= 0) || (pos3.x > 0));
 
     finPeaton();
     ret = ReleaseMutex(datos.mutex[posAnt.x][posAnt.y]);
     if (ret == FALSE) {
-        PERROR("Error al hacer el signal en datos.mutex[posAnt.x][posAnt.y] 10");
+        PERROR("Error al hacer el signal en mutex 24");
         exit(1);
     }
-    fprintf(stderr, "%d Libero x=%d y=%d.\n", GetCurrentThreadId(), posAnt.x, posAnt.y);
 
-    ret = ReleaseSemaphore(datos.semNumProc, 1, NULL);//Comprobar errores
+    ret = ReleaseSemaphore(datos.semNumProc, 1, NULL);
     if (ret == FALSE) {
-        PERROR("Error al hacer el signal en numProc 11");
+        PERROR("Error al hacer el signal en semNumProc 25");
         exit(1);
     }
 
@@ -579,7 +564,6 @@ DWORD WINAPI coche(LPVOID param) {
     BOOL ret;
     int flagCruce = 0, flagLibCoche = 0, flagCoche = 0;
     DWORD err;
-    char tmp[100];
 
     pos1 = inicioCoche();
     if (pos1.y == 10) {          //C2
@@ -587,24 +571,18 @@ DWORD WINAPI coche(LPVOID param) {
             if (flagCruce == 0) {
                 err = WaitForSingleObject(datos.semCoches[pos1.x + 8][pos1.y], INFINITE);
                 switch (err) {
-                    //case WAIT_OBJECT_0:                 PERROR("Error en el wait datos.mutex[pos1.x+8][pos1.y] WAIT_OBJECT_0 12"); break; 
-                case WAIT_FAILED:                       PERROR("% d Error wait en x = % d y = % d. 12\n", GetCurrentThreadId(), posAnt.x, posAnt.y); exit(1);
-                default:                                fprintf(stderr, "Coche %ld. Ocupo mutex[%d][%d]\n", GetCurrentThreadId(), pos1.x+8 , pos1.y);  break;
+                    case WAIT_FAILED:                       PERROR("Error wait en semCoches WAIT_FAILED 26"); exit(1);
                 }
             }
             
-            fprintf(stderr, "Coche %d PASA 2\n", GetCurrentThreadId());
             pos3 = avanzaCoche(pos1);
 
             if (flagLibCoche >= 5 && flagCruce < 6) {
-                fprintf(stderr, "Coche %ld. Libero xxx mutex[%d][%d]\n", GetCurrentThreadId(), posAnt.x , posAnt.y);
-                ret = ReleaseSemaphore(datos.semCoches[posAnt.x][posAnt.y],1,0);    //Comprobar errores//Comprobar errores
-                if (ret == FALSE) {
-                    sprintf_s(tmp, "%d Error signal en x=%d y=%d. 13\n", GetCurrentThreadId(), posAnt.x, posAnt.y); 
-                    PERROR(tmp);
+                ret = ReleaseSemaphore(datos.semCoches[posAnt.x][posAnt.y],1,0);   
+                if (ret == FALSE) {         
+                    PERROR("Error signal en semCoches 27");
                     exit(1);
                 }
-                //fprintf(stderr, "Coche %ld. Libero xxx mutex[%d][%d]\n", GetCurrentThreadId(), posAnt.x, posAnt.y);
             }
             else {
                 flagLibCoche++;
@@ -619,25 +597,21 @@ DWORD WINAPI coche(LPVOID param) {
 
             if (pos3.x == 13) {
                 err = WaitForSingleObject(datos.semC2, INFINITE);
-                switch (err) {
-                    //case WAIT_OBJECT_0:                 PERROR("Error en el wait semC2 WAIT_OBJECT_0 14"); break; 
-                case WAIT_FAILED:                   PERROR("Error en el wait semC2 WAIT_FAILED 14");   exit(1);
-                default:                            break;
+                switch (err) { 
+                    case WAIT_FAILED:                   PERROR("Error en el wait semC2 WAIT_FAILED 28");   exit(1);
                 }
             }
             else if (pos3.x == 23) {
                 err = WaitForSingleObject(datos.CRUCE_COCHES, INFINITE);
-                switch (err) {
-                    //case WAIT_OBJECT_0:                 PERROR("Error en el wait CRUCE_COCHES WAIT_OBJECT_0 15"); break; 
-                case WAIT_FAILED:                   PERROR("Error en el wait CRUCE_COCHES WAIT_FAILED 15");   exit(1);
-                default:                            break;
+                switch (err) { 
+                    case WAIT_FAILED:                   PERROR("Error en el wait CRUCE_COCHES WAIT_FAILED 29");   exit(1);
                 }
                 flagCruce = 1;
             }
             else if (pos3.x == 29) {
-                ret = ReleaseSemaphore(datos.semC2, 1,NULL);//Comprobar errores
+                ret = ReleaseSemaphore(datos.semC2, 1,NULL);
                 if (ret == FALSE) {
-                    PERROR("Error al hacer el signal en semC2 16");
+                    PERROR("Error al hacer el signal en semC2 30");
                     exit(1);
                 }
             }
@@ -648,43 +622,33 @@ DWORD WINAPI coche(LPVOID param) {
             if (flagLibCoche == 0) {
                 err = WaitForSingleObject(datos.semCoches[pos1.x][pos1.y + 6], INFINITE);
                 switch (err) {
-                    //case WAIT_OBJECT_0:                 PERROR("Error en el wait datos.mutex[pos1.x][pos1.y+6] WAIT_OBJECT_0 17"); break; 
-                    case WAIT_FAILED:
-                        sprintf_s(tmp, "%d Error wait en x=%d y=%d. 18\n", GetCurrentThreadId(), pos1.x, pos1.y); PERROR(tmp); exit(1);
-                    default:                            //fprintf_s(stderr, "Coche %ld Reservo x=[%d] y=[%d].\n", GetCurrentThreadId(), pos1.x, pos1.y + 6);  
-                        break;
+                    case WAIT_FAILED:                   PERROR("Error en wait de semCoches WAIT_FAILED 31");   exit(1);
                 }
                 posAnt = pos1;
             }
             
             pos3 = avanzaCoche(pos1);
-            //fprintf(stderr, "Coche %ld PASA 1 Pos 1 x=%d y=%d\n", GetCurrentThreadId(), pos1.x, pos1.y);
 
             if (flagLibCoche == 1) {
-                ret = ReleaseSemaphore(datos.semCoches[posAnt.x][posAnt.y+6], 1, 0);//Comprobar errores
+                ret = ReleaseSemaphore(datos.semCoches[posAnt.x][posAnt.y+6], 1, 0);
                 if (ret == FALSE) {
-                    fprintf_s(stderr, "%d Error signal en x=%d y=%d. 18\n", GetCurrentThreadId(), posAnt.x, posAnt.y+6);
+                    PERROR("Error en signal semCoches 32");
                     exit(1);
                 }
-                //fprintf_s(stderr, "Coche %ld Libero x=[%d] y=[%d].\n", GetCurrentThreadId(), posAnt.x, posAnt.y+6);
+                
                 flagLibCoche++;
             } else {
                 flagLibCoche = 2;
             }
             
             if ((pos3.y == 6) && (flagCoche == 0)) {
-                fprintf(stderr, "Entro C1 a bloquear semaforos.\n");
                 err = WaitForSingleObject(datos.semC1, INFINITE);
                 switch (err) {
-                    //case WAIT_OBJECT_0:                 PERROR("Error en el wait semC1 WAIT_OBJECT_0 19"); break; 
-                case WAIT_FAILED:                   PERROR("Error en el wait semC1 WAIT_FAILED 19");   exit(1);
-                default:                            break;
+                    case WAIT_FAILED:                   PERROR("Error en el wait semC1 WAIT_FAILED 33");   exit(1);
                 }
                 err = WaitForSingleObject(datos.CRUCE_COCHES, INFINITE);
                 switch (err) {
-                    //case WAIT_OBJECT_0:                 PERROR("Error en el wait CRUCE_COCHES WAIT_OBJECT_0 20"); break; 
-                case WAIT_FAILED:                   PERROR("Error en el wait CRUCE_COCHES WAIT_FAILED 20");   exit(1);
-                default:                            break;
+                    case WAIT_FAILED:                   PERROR("Error en el wait CRUCE_COCHES WAIT_FAILED 34");   exit(1);
                 }
                 flagCoche = 1;
             }
@@ -699,22 +663,21 @@ DWORD WINAPI coche(LPVOID param) {
     
     finCoche();
 
-    ret = ReleaseSemaphore(datos.semNumProc, 1, NULL);//Comprobar errores
+    ret = ReleaseSemaphore(datos.semNumProc, 1, NULL);
     if (ret == FALSE) {
-        PERROR("Error al hacer el signal en numProc 23");
+        PERROR("Error al hacer el signal en numProc 35");
         exit(1);
     }
-    fprintf(stderr, "Entro a liberar semaforos");
     if (flagCoche == 2) {
-        ret = ReleaseSemaphore(datos.semC1, 1, 0);//Comprobar errores
+        ret = ReleaseSemaphore(datos.semC1, 1, 0);
         if (ret == FALSE) {
-            PERROR("Error al hacer el signal en semC1 21");
+            PERROR("Error al hacer el signal en semC1 36");
             exit(1);
         }
     }
-    ret = ReleaseSemaphore(datos.CRUCE_COCHES, 1, 0);//Comprobar errores
+    ret = ReleaseSemaphore(datos.CRUCE_COCHES, 1, 0);
     if (ret == FALSE) {
-        PERROR("Error al hacer el signal en CRUCE_COCHES 22");
+        PERROR("Error al hacer el signal en CRUCE_COCHES 37");
         exit(1);
     }
 
