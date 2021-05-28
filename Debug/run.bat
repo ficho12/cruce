@@ -1,1 +1,0 @@
-cmd /k cruce2 20 25 2>temp.txt
