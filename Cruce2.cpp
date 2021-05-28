@@ -295,7 +295,7 @@ int main(int argc, char* argv[]) {
 
         ret = WaitForSingleObject(datos.semNumProc, INFINITE);
 
-        tipo = 0; //nuevoProceso();
+        tipo = nuevoProceso();
         if (tipo == PEAToN) {       //Proceso peaton                     
             if (CreateThread(NULL, 0, peaton, NULL, 0, NULL) == NULL) {
                 PERROR("Error al crear el hilo");
@@ -582,8 +582,6 @@ DWORD WINAPI coche(LPVOID param) {
     char tmp[100];
 
     pos1 = inicioCoche();
-    pos1.x = -3;
-    pos1.y = 10;
     if (pos1.y == 10) {          //C2
         do {
             if (flagCruce == 0) {
@@ -645,7 +643,7 @@ DWORD WINAPI coche(LPVOID param) {
             }
         } while (pos1.y > 0);
     }
-    /*if (pos1.x == 33) {         //C1
+    if (pos1.x == 33) {         //C1
         do {
             if (flagLibCoche == 0) {
                 err = WaitForSingleObject(datos.semCoches[pos1.x][pos1.y + 6], INFINITE);
@@ -697,7 +695,7 @@ DWORD WINAPI coche(LPVOID param) {
             pausaCoche();
             pos1 = pos3;
         } while (pos3.y != -2);
-    }*/
+    }
     
     finCoche();
 
